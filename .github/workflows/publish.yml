@@ -1,0 +1,68 @@
+name: Publish to PyPI
+
+on:
+  push:
+    tags:
+      - "v*"          # fires on v1.0.0, v1.0.1, etc.
+  workflow_dispatch:   # manual trigger from GitHub UI
+
+jobs:
+  test:
+    name: Test before publish
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install package + dev deps
+        run: pip install -e ".[dev]"
+      - name: Lint
+        run: ruff check . || true   # warn, don't block
+      - name: Test
+        run: pytest tests/ -q
+
+  publish:
+    name: Build and publish to PyPI
+    needs: test
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mpesa-mcp
+    permissions:
+      id-token: write   # required for Trusted Publisher (OIDC)
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build
+        run: |
+          pip install build
+          python -m build
+      - name: Publish to PyPI (Trusted Publisher)
+        uses: pypa/gh-action-pypi-publish@release/v1
+        # No API token needed — uses OIDC via GitHub Trusted Publisher
+        # Setup: pypi.org → account → Publishing → Add a new publisher
+        # Fill in: GitHub owner=gabrielmahia, repo=mpesa-mcp, workflow=publish.yml, env=pypi
+
+  github-release:
+    name: Create GitHub Release
+    needs: publish
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG=${GITHUB_REF#refs/tags/}
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --generate-notes \
+            --verify-tag
