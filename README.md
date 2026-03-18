@@ -8,6 +8,8 @@ Give your AI agent the ability to trigger M-Pesa payments, check transaction sta
 [![PyPI](https://img.shields.io/pypi/v/mpesa-mcp)](https://pypi.org/project/mpesa-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+[![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
+
 ## Why this exists
 
 M-Pesa processes more transactions per day than PayPal does in Africa. Africa's Talking
