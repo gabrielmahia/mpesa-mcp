@@ -8,6 +8,16 @@ Give your AI agent the ability to trigger M-Pesa payments, check transaction sta
 [![PyPI](https://img.shields.io/pypi/v/mpesa-mcp)](https://pypi.org/project/mpesa-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+## Why this exists
+
+M-Pesa processes more transactions per day than PayPal does in Africa. Africa's Talking
+reaches users in 20+ countries on basic phones via SMS and USSD. Neither has an MCP server.
+
+This means every AI agent built today — Claude, GPT, Gemini, or any MCP-compatible runtime —
+cannot trigger an M-Pesa payment or send a Kiswahili SMS without custom integration work.
+
+`mpesa-mcp` closes that gap in one `pip install`.
+
 ## Tools
 
 | Tool | Description |
@@ -105,6 +115,24 @@ Once connected, you can ask your AI agent:
 > "Send an SMS to these 50 farmers with today's maize price: [list]"
 
 > "Top up KES 50 airtime for our field agents: [list of numbers]"
+
+## Real-world scenarios
+
+**Field agent payment dispatch**
+> "Send KES 300 STK Push to each of these 12 field agents for today's data collection: [list]"
+
+The agent triggers 12 sequential STK pushes, tracks each `checkout_request_id`, and
+polls for confirmation — without any code from you.
+
+**Farmer alert + airtime**
+> "SMS these 200 Garissa farmers that the river is rising. Then top up KES 20 airtime each so they can call in reports."
+
+One prompt → 200 SMS messages and 200 airtime top-ups across Safaricom, Airtel, and Telkom.
+
+**Payment reconciliation**
+> "Check whether receipt OKL8M3B2HF was a successful payment and how much it was for"
+
+Useful for support agents using Claude to verify M-Pesa transactions in real time.
 
 ## Development
 
