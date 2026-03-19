@@ -1,0 +1,71 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.gabrielmahia/mpesa-mcp",
+  "description": "M-Pesa + Africa's Talking MCP server \u2014 payments, SMS, airtime for AI agents in East Africa.",
+  "repository": {
+    "url": "https://github.com/gabrielmahia/mpesa-mcp",
+    "source": "github"
+  },
+  "version": "0.1.0",
+  "packages": [
+    {
+      "registryType": "pypi",
+      "identifier": "mpesa-mcp",
+      "version": "0.1.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "MPESA_CONSUMER_KEY",
+          "description": "Safaricom Daraja consumer key",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MPESA_CONSUMER_SECRET",
+          "description": "Safaricom Daraja consumer secret",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MPESA_SHORTCODE",
+          "description": "M-Pesa shortcode (till or paybill number)",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "MPESA_PASSKEY",
+          "description": "M-Pesa Lipa Na M-Pesa online passkey",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "MPESA_ENV",
+          "description": "Daraja environment: sandbox or production",
+          "isRequired": false,
+          "isSecret": false,
+          "format": "string"
+        },
+        {
+          "name": "AT_API_KEY",
+          "description": "Africa's Talking API key",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "AT_USERNAME",
+          "description": "Africa's Talking username (use 'sandbox' for testing)",
+          "isRequired": true,
+          "isSecret": false,
+          "format": "string"
+        }
+      ]
+    }
+  ]
+}
