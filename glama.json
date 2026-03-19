@@ -1,0 +1,69 @@
+{
+  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "name": "mpesa-mcp",
+  "description": "MCP server for East African fintech APIs — M-Pesa (Safaricom Daraja) and Africa's Talking. Give AI agents the ability to trigger M-Pesa payments, check transaction status, send SMS, and top up airtime across 20+ African telecom networks.",
+  "license": "MIT",
+  "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
+  "author": {
+    "name": "Gabriel Mahia",
+    "email": "contact@aikungfu.dev",
+    "url": "https://gabrielmahia.github.io"
+  },
+  "keywords": [
+    "mpesa",
+    "m-pesa",
+    "safaricom",
+    "daraja",
+    "africa",
+    "kenya",
+    "fintech",
+    "payments",
+    "sms",
+    "africa-talking",
+    "airtime",
+    "mcp",
+    "model-context-protocol"
+  ],
+  "tools": [
+    {
+      "name": "mpesa_stk_push",
+      "description": "Trigger an M-Pesa STK Push payment request to a customer's phone"
+    },
+    {
+      "name": "mpesa_stk_query",
+      "description": "Check the status of an M-Pesa STK Push transaction"
+    },
+    {
+      "name": "mpesa_transaction_status",
+      "description": "Query the status of any M-Pesa transaction by receipt number"
+    },
+    {
+      "name": "sms_send",
+      "description": "Send SMS to up to 1,000 recipients across 20+ African telecom networks via Africa's Talking"
+    },
+    {
+      "name": "airtime_send",
+      "description": "Top up airtime for any mobile subscriber across African networks"
+    }
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/gabrielmahia/mpesa-mcp"
+  },
+  "installation": {
+    "pip": "mpesa-mcp",
+    "uvx": "mpesa-mcp"
+  },
+  "related": [
+    {
+      "name": "daraja-v3",
+      "url": "https://pypi.org/project/daraja-v3/",
+      "description": "Python SDK for Safaricom Daraja API"
+    },
+    {
+      "name": "kenya-sms",
+      "url": "https://pypi.org/project/kenya-sms/",
+      "description": "Africa's Talking SMS wrapper with bilingual EN/SW templates"
+    }
+  ]
+}
