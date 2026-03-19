@@ -1,0 +1,70 @@
+name: mpesa-mcp
+description: MCP server for East African fintech APIs — M-Pesa (Safaricom Daraja) and Africa's Talking. Give AI agents the ability to trigger M-Pesa payments, check transaction status, send SMS, and top up airtime across 20+ African telecom networks.
+license: MIT
+homepage: https://github.com/gabrielmahia/mpesa-mcp
+repository: https://github.com/gabrielmahia/mpesa-mcp
+author:
+  name: Gabriel Mahia
+  email: contact@aikungfu.dev
+  url: https://gabrielmahia.github.io
+keywords:
+  - mpesa
+  - m-pesa
+  - safaricom
+  - daraja
+  - africa
+  - kenya
+  - fintech
+  - payments
+  - sms
+  - africa-talking
+  - airtime
+startCommand:
+  type: stdio
+  configSchema:
+    type: object
+    required:
+      - MPESA_CONSUMER_KEY
+      - MPESA_CONSUMER_SECRET
+      - MPESA_SHORTCODE
+      - MPESA_PASSKEY
+      - AT_API_KEY
+      - AT_USERNAME
+    properties:
+      MPESA_CONSUMER_KEY:
+        type: string
+        description: Safaricom Daraja consumer key
+      MPESA_CONSUMER_SECRET:
+        type: string
+        description: Safaricom Daraja consumer secret
+      MPESA_SHORTCODE:
+        type: string
+        description: M-Pesa shortcode (till or paybill)
+      MPESA_PASSKEY:
+        type: string
+        description: M-Pesa Lipa Na M-Pesa passkey
+      MPESA_ENV:
+        type: string
+        enum: [sandbox, production]
+        default: sandbox
+        description: Daraja environment
+      AT_API_KEY:
+        type: string
+        description: Africa's Talking API key
+      AT_USERNAME:
+        type: string
+        description: Africa's Talking username (use 'sandbox' for testing)
+  commandFunction: |-
+    (config) => ({
+      command: "uvx",
+      args: ["mpesa-mcp"],
+      env: {
+        MPESA_CONSUMER_KEY: config.MPESA_CONSUMER_KEY,
+        MPESA_CONSUMER_SECRET: config.MPESA_CONSUMER_SECRET,
+        MPESA_SHORTCODE: config.MPESA_SHORTCODE,
+        MPESA_PASSKEY: config.MPESA_PASSKEY,
+        MPESA_ENV: config.MPESA_ENV || "sandbox",
+        AT_API_KEY: config.AT_API_KEY,
+        AT_USERNAME: config.AT_USERNAME || "sandbox",
+      }
+    })
