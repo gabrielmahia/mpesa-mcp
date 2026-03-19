@@ -1,5 +1,7 @@
 # mpesa-mcp
 
+<!-- mcp-name: io.github.gabrielmahia/mpesa-mcp -->
+
 > MCP server for East African fintech APIs — M-Pesa (Safaricom Daraja) and Africa's Talking
 
 Give your AI agent the ability to trigger M-Pesa payments, check transaction status, send SMS, and top up airtime across 20+ African telecom networks.
