@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "mpesa-mcp",
-  "description": "MCP server for East African fintech APIs — M-Pesa (Safaricom Daraja) and Africa's Talking. Give AI agents the ability to trigger M-Pesa payments, check transaction status, send SMS, and top up airtime across 20+ African telecom networks.",
+  "description": "M-Pesa + Africa's Talking MCP server -- payments, SMS, airtime for AI agents in East Africa.",
   "license": "MIT",
   "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
   "author": {
@@ -27,7 +27,7 @@
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger an M-Pesa STK Push payment request to a customer's phone"
+      "description": "Trigger an M-Pesa STK Push payment to a customer's phone"
     },
     {
       "name": "mpesa_stk_query",
@@ -35,11 +35,11 @@
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query the status of any M-Pesa transaction by receipt number"
+      "description": "Query any M-Pesa transaction by receipt number"
     },
     {
       "name": "sms_send",
-      "description": "Send SMS to up to 1,000 recipients across 20+ African telecom networks via Africa's Talking"
+      "description": "Send SMS via Africa's Talking to 1000+ recipients across 20+ African networks"
     },
     {
       "name": "airtime_send",
