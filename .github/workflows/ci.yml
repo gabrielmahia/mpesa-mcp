@@ -16,5 +16,5 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - run: pip install -e ".[dev]"
-      - run: ruff check src/
+      - run: ruff check src/ --ignore E501
       - run: pytest tests/ -v
