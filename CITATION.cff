@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it using these metadata."
+type: software
+title: "mpesa-mcp"
+abstract: "MCP server for M-Pesa Daraja API and Africa's Talking"
+authors:
+  - family-names: Mahia
+    given-names: Gabriel
+    email: contact@aikungfu.dev
+    orcid: ""
+    affiliation: "aikungfu.dev"
+repository-code: "https://github.com/gabrielmahia/mpesa-mcp"
+url: "https://aikungfu.dev"
+license: "CC-BY-NC-ND-4.0"
+version: "1.0.0"
+date-released: "2026-01-01"
+keywords:
+  - kenya
+  - east-africa
+  - civic-tech
+  - decision-infrastructure
