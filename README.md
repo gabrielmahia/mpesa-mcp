@@ -176,6 +176,21 @@ pytest tests/test_boundary_amounts.py  # min/max amount edge cases
 
 Write operations (STK push, SMS, airtime) have explicit validation before any API call is made.
 
+
+## MCP vs A2A — two different protocols
+
+mpesa-mcp implements **MCP** (Model Context Protocol) — how an AI agent talks to tools.
+
+There is a complementary protocol, **A2A** (Agent-to-Agent), which handles how agents
+talk to *each other*. They solve different problems and work together:
+
+- **MCP**: Your AI agent → mpesa-mcp → Daraja API / Africa's Talking
+- **A2A**: Orchestrator agent ↔ payment sub-agent ↔ notification sub-agent
+
+For most integrations you only need MCP. A2A becomes relevant when you're building
+multi-agent systems where a payment workflow coordinates with other specialized agents.
+
+---
 ## Development
 
 ```bash
