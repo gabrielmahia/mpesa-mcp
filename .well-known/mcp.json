@@ -1,0 +1,63 @@
+{
+  "name": "mpesa-mcp",
+  "display_name": "M-Pesa + Africa's Talking MCP Server",
+  "description": "Give AI agents access to M-Pesa Daraja API and Africa's Talking. Trigger STK Push payments, check transaction status, send SMS to 20+ African telecom networks, and top up airtime.",
+  "version": "0.1.2",
+  "spec_version": "2025-03-26",
+  "license": "CC-BY-NC-ND-4.0",
+  "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
+  "repository": "https://github.com/gabrielmahia/mpesa-mcp",
+  "author": {
+    "name": "Gabriel Mahia",
+    "email": "contact@aikungfu.dev",
+    "url": "https://aikungfu.dev"
+  },
+  "categories": [
+    "finance",
+    "payments",
+    "africa",
+    "sms",
+    "telecom"
+  ],
+  "tools": [
+    {
+      "name": "mpesa_stk_push",
+      "description": "Trigger M-Pesa STK Push payment prompt on customer's phone",
+      "readOnlyHint": false,
+      "destructiveHint": true
+    },
+    {
+      "name": "mpesa_stk_query",
+      "description": "Check the status of an STK Push transaction",
+      "readOnlyHint": true,
+      "destructiveHint": false
+    },
+    {
+      "name": "mpesa_transaction_status",
+      "description": "Query any M-Pesa transaction by receipt number",
+      "readOnlyHint": true,
+      "destructiveHint": false
+    },
+    {
+      "name": "sms_send",
+      "description": "Send SMS to up to 1,000 recipients across 20+ African telecom networks",
+      "readOnlyHint": false,
+      "destructiveHint": true
+    },
+    {
+      "name": "airtime_send",
+      "description": "Top up airtime for any mobile subscriber",
+      "readOnlyHint": false,
+      "destructiveHint": true
+    }
+  ],
+  "install": {
+    "pip": "pip install mpesa-mcp",
+    "uvx": "uvx mpesa-mcp"
+  },
+  "registry": {
+    "mcp": "io.github.gabrielmahia/mpesa-mcp",
+    "pypi": "mpesa-mcp",
+    "glama": "https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp"
+  }
+}
