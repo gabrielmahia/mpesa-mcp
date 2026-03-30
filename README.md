@@ -139,6 +139,43 @@ One prompt → 200 SMS messages and 200 airtime top-ups across Safaricom, Airtel
 
 Useful for support agents using Claude to verify M-Pesa transactions in real time.
 
+## Tool annotations
+
+All tools declare [MCP tool annotations](https://spec.modelcontextprotocol.io/specification/2025-03-26/server/tools/#tool-annotations) so clients can gate calls appropriately:
+
+| Tool | readOnly | destructive | idempotent |
+|------|----------|-------------|------------|
+| `mpesa_stk_push` | ❌ | ✅ | ❌ |
+| `mpesa_stk_query` | ✅ | ❌ | ✅ |
+| `mpesa_transaction_status` | ✅ | ❌ | ✅ |
+| `sms_send` | ❌ | ✅ | ❌ |
+| `airtime_send` | ❌ | ✅ | ❌ |
+
+Claude Desktop and other MCP clients will request confirmation before triggering payment, SMS, or airtime operations.
+
+## Server discovery
+
+Capabilities are advertised via [`.well-known/mcp.json`](.well-known/mcp.json) — the emerging MCP Server Cards standard. Registries and browsers can index this server's tools without connecting to it.
+
+```bash
+# Check capabilities
+curl https://raw.githubusercontent.com/gabrielmahia/mpesa-mcp/main/.well-known/mcp.json
+```
+
+## Testing and accuracy
+
+The MCP ecosystem benchmark (CData, 2026) found most MCP servers accurate 60–75% of the time on complex queries — particularly silent failures on write operations and partial parameter application.
+
+mpesa-mcp is tested against all three Kenyan phone number formats, boundary amount values, and missing optional fields:
+
+```bash
+pytest tests/ -v  # run full suite
+pytest tests/test_phone_formats.py  # format normalization
+pytest tests/test_boundary_amounts.py  # min/max amount edge cases
+```
+
+Write operations (STK push, SMS, airtime) have explicit validation before any API call is made.
+
 ## Development
 
 ```bash
@@ -155,4 +192,4 @@ Report vulnerabilities to: contact@aikungfu.dev
 
 ## License
 
-MIT — © 2026 Gabriel Mahia
+[CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — © 2026 Gabriel Mahia
