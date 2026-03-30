@@ -99,7 +99,13 @@ def _at_airtime():
 
 # ── M-Pesa tools ─────────────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations={
+    'title': 'M-Pesa STK Push',
+    'readOnlyHint': False,
+    'destructiveHint': True,
+    'idempotentHint': False,
+    'openWorldHint': True,
+})
 def mpesa_stk_push(
     phone: Annotated[str, "Customer phone number (any Kenyan format: +254..., 07..., 254...)"],
     amount: Annotated[int, "Amount in KES (whole number, minimum 1)"],
@@ -153,7 +159,13 @@ def mpesa_stk_push(
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations={
+    'title': 'M-Pesa STK Query',
+    'readOnlyHint': True,
+    'destructiveHint': False,
+    'idempotentHint': True,
+    'openWorldHint': True,
+})
 def mpesa_stk_query(
     checkout_request_id: Annotated[str, "CheckoutRequestID from mpesa_stk_push response"],
 ) -> dict:
@@ -203,7 +215,13 @@ def mpesa_stk_query(
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations={
+    'title': 'M-Pesa Transaction Status',
+    'readOnlyHint': True,
+    'destructiveHint': False,
+    'idempotentHint': True,
+    'openWorldHint': True,
+})
 def mpesa_transaction_status(
     transaction_id: Annotated[str, "M-Pesa receipt number e.g. QKL8XXXXXX"],
 ) -> dict:
@@ -245,7 +263,13 @@ def mpesa_transaction_status(
 
 # ── Africa's Talking tools ────────────────────────────────────────────────────
 
-@mcp.tool()
+@mcp.tool(annotations={
+    'title': 'Send SMS',
+    'readOnlyHint': False,
+    'destructiveHint': True,
+    'idempotentHint': False,
+    'openWorldHint': True,
+})
 def sms_send(
     message: Annotated[str, "SMS message text. Unicode supported (Kiswahili, etc.)"],
     recipients: Annotated[list[str], "List of phone numbers in E.164 format e.g. ['+254712345678']"],
@@ -284,7 +308,13 @@ def sms_send(
     }
 
 
-@mcp.tool()
+@mcp.tool(annotations={
+    'title': 'Send Airtime',
+    'readOnlyHint': False,
+    'destructiveHint': True,
+    'idempotentHint': False,
+    'openWorldHint': True,
+})
 def airtime_send(
     phone: Annotated[str, "Recipient phone in E.164 format e.g. '+254712345678'"],
     amount: Annotated[str, "Amount as string e.g. '50' (KES 50). Minimum KES 10 in production."],
