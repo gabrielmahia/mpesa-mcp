@@ -1,3 +1,9 @@
+## [0.1.4] — 2026-03-30
+
+### Changed
+- Version bump only — resolves PyPI filename collision from partial 0.1.3 upload
+- No code changes from 0.1.3
+
 # Changelog
 
 ## [0.1.3] — 2026-03-30
