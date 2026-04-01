@@ -177,6 +177,18 @@ pytest tests/test_boundary_amounts.py  # min/max amount edge cases
 Write operations (STK push, SMS, airtime) have explicit validation before any API call is made.
 
 
+## Ecosystem context — Mojaloop + MCP
+
+**Mojaloop** (funded by the Gates Foundation) handles payment *interoperability* — connecting banks, mobile money wallets, and merchants across DFSPs in East Africa and beyond.
+
+**mpesa-mcp** handles the *AI agent tooling layer* — enabling AI coding assistants to trigger and query M-Pesa payments programmatically.
+
+These are complementary:
+- Mojaloop: the interoperability rails between financial providers
+- mpesa-mcp: the MCP interface layer that connects AI agents to those rails
+
+See the [Mojaloop documentation contribution](https://github.com/mojaloop/documentation/issues/553) for more on this pattern.
+
 ## MCP vs A2A — two different protocols
 
 mpesa-mcp implements **MCP** (Model Context Protocol) — how an AI agent talks to tools.
