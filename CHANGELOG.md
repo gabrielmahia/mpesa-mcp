@@ -1,3 +1,12 @@
+## [0.1.6] — 2026-04-06
+
+### Fixed
+- Added `license-files = ["LICENSE"]` to pyproject.toml so PyPI correctly displays CC-BY-NC-ND-4.0
+- Added newsletter subscription link to README
+
+### Changed
+- No code changes from 0.1.5
+
 ## [0.1.4] — 2026-03-30
 
 ### Changed
