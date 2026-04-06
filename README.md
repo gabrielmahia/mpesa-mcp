@@ -220,3 +220,11 @@ Report vulnerabilities to: contact@aikungfu.dev
 ## License
 
 [CC BY-NC-ND 4.0](https://creativecommons.org/licenses/by-nc-nd/4.0/) — © 2026 Gabriel Mahia
+
+
+## Stay updated
+
+Get notified of new releases and East African API developments:
+**[Subscribe to updates →](https://buttondown.com/gabrielmahia)**
+
+Or watch this repo on GitHub for release notifications.
