@@ -1,8 +1,8 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "mpesa-mcp",
-  "description": "M-Pesa + Africa's Talking MCP server -- payments, SMS, airtime for AI agents in East Africa.",
-  "license": "MIT",
+  "description": "MCP server for M-Pesa (Safaricom Daraja) and Africa's Talking APIs. Enables AI agents to trigger STK Push payments, query transaction status, send SMS to 20+ African telecom networks, and top up airtime.",
+  "license": "CC-BY-NC-ND-4.0",
   "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
   "author": {
     "name": "Gabriel Mahia",
@@ -22,28 +22,59 @@
     "africa-talking",
     "airtime",
     "mcp",
-    "model-context-protocol"
+    "model-context-protocol",
+    "east-africa"
   ],
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger an M-Pesa STK Push payment to a customer's phone"
+      "description": "Trigger an M-Pesa STK Push payment request to a customer phone number. Destructive — sends a real payment prompt.",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
     },
     {
       "name": "mpesa_stk_query",
-      "description": "Check the status of an M-Pesa STK Push transaction"
+      "description": "Check the status of a pending M-Pesa STK Push transaction by CheckoutRequestID.",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query any M-Pesa transaction by receipt number"
+      "description": "Query the status of any M-Pesa transaction by TransactionID or receipt number.",
+      "annotations": {
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "readOnlyHint": true,
+        "openWorldHint": true
+      }
     },
     {
       "name": "sms_send",
-      "description": "Send SMS via Africa's Talking to 1000+ recipients across 20+ African networks"
+      "description": "Send SMS via Africa's Talking to up to 1000 recipients across 20+ African telecom networks. Destructive — sends real messages.",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
     },
     {
       "name": "airtime_send",
-      "description": "Top up airtime for any mobile subscriber across African networks"
+      "description": "Top up airtime for a mobile subscriber via Africa's Talking. Destructive — triggers real airtime transfer.",
+      "annotations": {
+        "destructiveHint": true,
+        "idempotentHint": false,
+        "readOnlyHint": false,
+        "openWorldHint": true
+      }
     }
   ],
   "repository": {
@@ -61,9 +92,9 @@
       "description": "Python SDK for Safaricom Daraja API"
     },
     {
-      "name": "kenya-sms",
-      "url": "https://pypi.org/project/kenya-sms/",
-      "description": "Africa's Talking SMS wrapper with bilingual EN/SW templates"
+      "name": "africastalking",
+      "url": "https://pypi.org/project/africastalking/",
+      "description": "Official Africa's Talking Python SDK"
     }
   ]
 }
