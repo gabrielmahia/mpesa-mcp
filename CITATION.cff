@@ -19,3 +19,10 @@ keywords:
   - east-africa
   - civic-tech
   - decision-infrastructure
+identifiers:
+  - type: doi
+    value: "10.34740/kaggle/dsv/15473045"
+    description: "Kenya Civic Data on Kaggle"
+  - type: doi
+    value: "10.57967/hf/8223"
+    description: "Kenya Civic Data on Hugging Face"
