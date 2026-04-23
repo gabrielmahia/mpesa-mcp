@@ -1,3 +1,12 @@
+## [0.1.7] — 2026-04-23
+
+### Changed
+- **License changed to MIT** — mpesa-mcp and all MCP/SDK infrastructure repos now use MIT
+  for maximum ecosystem compatibility. Streamlit apps remain CC BY-NC-ND 4.0.
+- Updated `glama.json` with `maintainers`, `version`, and `envVars` fields for Glama claim
+- Added `NOTICE` file with attribution and third-party library notices
+- Related servers: `wapimaji-mcp` (Kenya drought intelligence MCP)
+
 ## [0.1.6] — 2026-04-06
 
 ### Fixed
