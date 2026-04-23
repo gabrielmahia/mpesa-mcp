@@ -2,7 +2,7 @@
   "$schema": "https://glama.ai/mcp/schemas/server.json",
   "name": "mpesa-mcp",
   "description": "MCP server for M-Pesa (Safaricom Daraja) and Africa's Talking APIs. Enables AI agents to trigger STK Push payments, query transaction status, send SMS to 20+ African telecom networks, and top up airtime.",
-  "license": "CC-BY-NC-ND-4.0",
+  "license": "MIT",
   "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
   "author": {
     "name": "Gabriel Mahia",
