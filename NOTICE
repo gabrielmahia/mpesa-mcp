@@ -1,0 +1,30 @@
+NOTICE
+
+mpesa-mcp — MCP server for M-Pesa and Africa's Talking APIs
+Copyright (c) 2026 Gabriel Mahia (contact@aikungfu.dev)
+
+LICENSE STATEMENT
+This project is licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
+International (CC BY-NC-ND 4.0). See LICENSE for full terms.
+
+This license was chosen to:
+- Permit free use by individuals, researchers, civil society, and open-source projects
+- Prevent commercial redistribution without the author's consent
+- Protect the integrity of the tool for East African communities
+
+For commercial licensing, partnerships, or white-label arrangements:
+contact@aikungfu.dev
+
+ATTRIBUTION
+If you use mpesa-mcp in research, publications, or open-source tools, please cite:
+
+  Gabriel Mahia. (2026). mpesa-mcp: MCP server for M-Pesa and Africa's Talking APIs.
+  https://github.com/gabrielmahia/mpesa-mcp
+  PyPI: https://pypi.org/project/mpesa-mcp/
+
+THIRD-PARTY NOTICES
+This software uses the following open-source libraries:
+- mcp (MIT) — Model Context Protocol SDK
+- httpx (BSD) — HTTP client
+- africastalking (MIT) — Africa's Talking Python SDK
+- pydantic (MIT) — Data validation
