@@ -28,7 +28,7 @@
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger an M-Pesa STK Push payment request to a customer phone number. Destructive — sends a real payment prompt.",
+      "description": "Trigger an M-Pesa STK Push payment request to a customer phone number. Destructive \u2014 sends a real payment prompt.",
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
@@ -58,7 +58,7 @@
     },
     {
       "name": "sms_send",
-      "description": "Send SMS via Africa's Talking to up to 1000 recipients across 20+ African telecom networks. Destructive — sends real messages.",
+      "description": "Send SMS via Africa's Talking to up to 1000 recipients across 20+ African telecom networks. Destructive \u2014 sends real messages.",
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
@@ -68,7 +68,7 @@
     },
     {
       "name": "airtime_send",
-      "description": "Top up airtime for a mobile subscriber via Africa's Talking. Destructive — triggers real airtime transfer.",
+      "description": "Top up airtime for a mobile subscriber via Africa's Talking. Destructive \u2014 triggers real airtime transfer.",
       "annotations": {
         "destructiveHint": true,
         "idempotentHint": false,
@@ -87,14 +87,57 @@
   },
   "related": [
     {
-      "name": "daraja-v3",
-      "url": "https://pypi.org/project/daraja-v3/",
-      "description": "Python SDK for Safaricom Daraja API"
+      "name": "wapimaji-mcp",
+      "url": "https://github.com/gabrielmahia/wapimaji-mcp",
+      "description": "Kenya drought intelligence MCP server \u2014 NDMA data + SMS drought alerts via Africa's Talking"
+    }
+  ],
+  "maintainers": [
+    "gabrielmahia"
+  ],
+  "version": "0.1.6",
+  "envVars": [
+    {
+      "name": "MPESA_CONSUMER_KEY",
+      "description": "Safaricom Daraja API consumer key \u2014 from developer.safaricom.co.ke",
+      "required": true,
+      "secret": true
     },
     {
-      "name": "africastalking",
-      "url": "https://pypi.org/project/africastalking/",
-      "description": "Official Africa's Talking Python SDK"
+      "name": "MPESA_CONSUMER_SECRET",
+      "description": "Safaricom Daraja API consumer secret",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "MPESA_BUSINESS_SHORT_CODE",
+      "description": "M-Pesa Paybill or Till number",
+      "required": true,
+      "secret": false
+    },
+    {
+      "name": "MPESA_PASSKEY",
+      "description": "Lipa na M-Pesa passkey from Daraja portal",
+      "required": true,
+      "secret": true
+    },
+    {
+      "name": "AT_USERNAME",
+      "description": "Africa's Talking username (use 'sandbox' for testing)",
+      "required": false,
+      "secret": false
+    },
+    {
+      "name": "AT_API_KEY",
+      "description": "Africa's Talking API key",
+      "required": false,
+      "secret": true
+    },
+    {
+      "name": "SANDBOX",
+      "description": "Set to 'true' for sandbox mode (no real money moved). Default: true",
+      "required": false,
+      "secret": false
     }
   ]
 }
