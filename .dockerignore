@@ -1,0 +1,14 @@
+.git
+.github
+*.pyc
+__pycache__
+.venv
+venv
+dist
+build
+*.egg-info
+.env
+.streamlit
+tests
+docs
+CHANGELOG.md
