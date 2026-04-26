@@ -88,8 +88,8 @@
   "related": [
     {
       "name": "wapimaji-mcp",
-      "url": "https://github.com/gabrielmahia/wapimaji-mcp",
-      "description": "Kenya drought intelligence MCP server \u2014 NDMA data + SMS drought alerts via Africa's Talking"
+      "url": "https://glama.ai/mcp/servers/gabrielmahia/wapimaji-mcp",
+      "description": "Kenya drought intelligence MCP server by the same author"
     }
   ],
   "maintainers": [
@@ -139,5 +139,13 @@
       "required": false,
       "secret": false
     }
-  ]
+  ],
+  "dockerfile": "Dockerfile",
+  "docker": {
+    "image": "gabrielmahia/mpesa-mcp",
+    "build": {
+      "dockerfile": "Dockerfile",
+      "context": "."
+    }
+  }
 }
