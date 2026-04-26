@@ -99,19 +99,19 @@
   "envVars": [
     {
       "name": "MPESA_CONSUMER_KEY",
-      "description": "Safaricom Daraja API consumer key \u2014 from developer.safaricom.co.ke",
+      "description": "Safaricom Daraja consumer key from developer.safaricom.co.ke",
       "required": true,
       "secret": true
     },
     {
       "name": "MPESA_CONSUMER_SECRET",
-      "description": "Safaricom Daraja API consumer secret",
+      "description": "Safaricom Daraja consumer secret",
       "required": true,
       "secret": true
     },
     {
-      "name": "MPESA_BUSINESS_SHORT_CODE",
-      "description": "M-Pesa Paybill or Till number",
+      "name": "MPESA_SHORTCODE",
+      "description": "M-Pesa Paybill or Till number (sandbox: 174379)",
       "required": true,
       "secret": false
     },
@@ -122,8 +122,20 @@
       "secret": true
     },
     {
+      "name": "MPESA_CALLBACK_URL",
+      "description": "HTTPS URL for M-Pesa transaction callbacks",
+      "required": true,
+      "secret": false
+    },
+    {
+      "name": "MPESA_SANDBOX",
+      "description": "true = sandbox (no real money), false = production",
+      "required": false,
+      "secret": false
+    },
+    {
       "name": "AT_USERNAME",
-      "description": "Africa's Talking username (use 'sandbox' for testing)",
+      "description": "Africa's Talking username \u2014 use 'sandbox' for testing",
       "required": false,
       "secret": false
     },
@@ -134,18 +146,26 @@
       "secret": true
     },
     {
-      "name": "SANDBOX",
-      "description": "Set to 'true' for sandbox mode (no real money moved). Default: true",
+      "name": "MPESA_INITIATOR_NAME",
+      "description": "M-Pesa B2C initiator name (only needed for B2C tools)",
       "required": false,
       "secret": false
+    },
+    {
+      "name": "MPESA_SECURITY_CREDENTIAL",
+      "description": "M-Pesa B2C security credential (only for B2C tools)",
+      "required": false,
+      "secret": true
     }
   ],
   "dockerfile": "Dockerfile",
   "docker": {
-    "image": "gabrielmahia/mpesa-mcp",
-    "build": {
-      "dockerfile": "Dockerfile",
-      "context": "."
-    }
+    "buildSteps": [
+      "pip install mpesa-mcp==0.1.8"
+    ],
+    "cmd": [
+      "mpesa-mcp"
+    ],
+    "pythonVersion": "3.11"
   }
 }
