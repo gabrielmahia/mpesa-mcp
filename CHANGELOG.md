@@ -1,3 +1,9 @@
+## [0.1.8] — 2026-04-26
+
+### Fixed
+- PyPI now shows `License: MIT` correctly (the OSI classifier added in 0.1.7 source
+  required a new wheel build to take effect on pypi.org)
+
 ## [0.1.7] — 2026-04-23
 
 ### Changed
