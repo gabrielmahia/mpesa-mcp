@@ -11,7 +11,7 @@ authors:
     affiliation: "aikungfu.dev"
 repository-code: "https://github.com/gabrielmahia/mpesa-mcp"
 url: "https://aikungfu.dev"
-license: "CC-BY-NC-ND-4.0"
+license: "MIT"
 version: "1.0.0"
 date-released: "2026-01-01"
 keywords:
