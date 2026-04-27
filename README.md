@@ -39,6 +39,14 @@ cannot trigger an M-Pesa payment or send a Kiswahili SMS without custom integrat
 - **M-Pesa:** Kenya (Safaricom Daraja v3) — STK Push, C2B, transaction status
 - **SMS/Airtime:** Kenya, Nigeria, Ghana, Tanzania, Uganda, Rwanda, South Africa, and 15+ more via Africa's Talking
 
+
+## Glama (hosted MCP)
+
+mpesa-mcp is available as a hosted MCP server on [Glama](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp):
+
+[![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
+[![mpesa-mcp score](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/score.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
+
 ## Install
 
 ```bash
