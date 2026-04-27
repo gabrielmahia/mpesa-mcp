@@ -237,3 +237,10 @@ Get notified of new releases and East African API developments:
 **[Subscribe to updates →](https://buttondown.com/gabrielmahia)**
 
 Or watch this repo on GitHub for release notifications.
+## Sibling packages
+
+| Package | Install | Description |
+|---------|---------|-------------|
+| [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Kenya drought intelligence MCP server |
+| [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
+
