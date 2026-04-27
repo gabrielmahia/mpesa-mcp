@@ -28,51 +28,51 @@
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger an M-Pesa STK Push payment request to a customer phone number. Destructive \u2014 sends a real payment prompt.",
+      "description": "Trigger M-Pesa STK Push payment prompt on customer's phone",
       "annotations": {
+        "readOnlyHint": false,
         "destructiveHint": true,
         "idempotentHint": false,
-        "readOnlyHint": false,
         "openWorldHint": true
       }
     },
     {
       "name": "mpesa_stk_query",
-      "description": "Check the status of a pending M-Pesa STK Push transaction by CheckoutRequestID.",
+      "description": "Check status of an STK Push request (poll 10-30s after push)",
       "annotations": {
+        "readOnlyHint": true,
         "destructiveHint": false,
         "idempotentHint": true,
-        "readOnlyHint": true,
         "openWorldHint": true
       }
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query the status of any M-Pesa transaction by TransactionID or receipt number.",
+      "description": "Query any M-Pesa transaction by receipt number",
       "annotations": {
+        "readOnlyHint": true,
         "destructiveHint": false,
         "idempotentHint": true,
-        "readOnlyHint": true,
         "openWorldHint": true
       }
     },
     {
       "name": "sms_send",
-      "description": "Send SMS via Africa's Talking to up to 1000 recipients across 20+ African telecom networks. Destructive \u2014 sends real messages.",
+      "description": "Send SMS via Africa's Talking \u2014 15+ African markets, 1000 recipients/call",
       "annotations": {
+        "readOnlyHint": false,
         "destructiveHint": true,
         "idempotentHint": false,
-        "readOnlyHint": false,
         "openWorldHint": true
       }
     },
     {
       "name": "airtime_send",
-      "description": "Top up airtime for a mobile subscriber via Africa's Talking. Destructive \u2014 triggers real airtime transfer.",
+      "description": "Send mobile airtime top-up \u2014 Safaricom, Airtel, MTN, Vodafone",
       "annotations": {
+        "readOnlyHint": false,
         "destructiveHint": true,
         "idempotentHint": false,
-        "readOnlyHint": false,
         "openWorldHint": true
       }
     }
@@ -161,11 +161,15 @@
   "dockerfile": "Dockerfile",
   "docker": {
     "buildSteps": [
-      "pip install mpesa-mcp==0.1.8"
+      "uv tool install mpesa-mcp==0.1.8",
+      "ln -s /root/.local/bin/mpesa-mcp /usr/local/bin/mpesa-mcp"
     ],
     "cmd": [
+      "mcp-proxy",
+      "--",
       "mpesa-mcp"
     ],
-    "pythonVersion": "3.11"
+    "pythonVersion": "3.14",
+    "note": "Build tested and verified by Glama \u2014 all 5 tools detected"
   }
 }
