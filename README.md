@@ -243,4 +243,14 @@ Or watch this repo on GitHub for release notifications.
 |---------|---------|-------------|
 | [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Kenya drought intelligence MCP server |
 | [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
+## Related packages
 
+All MIT · All part of the East African civic AI stack
+
+| Package | Install | Description |
+|---------|---------|-------------|
+| [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Kenya drought intelligence MCP server |
+| [kenya-health-mcp](https://github.com/gabrielmahia/kenya-health-mcp) | `pip install kenya-health-mcp` | Kenya health data MCP — NHIF, facilities, maternal, rights |
+| [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
+
+Full portfolio: [gabrielmahia.github.io](https://gabrielmahia.github.io)
