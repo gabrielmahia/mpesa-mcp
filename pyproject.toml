@@ -16,16 +16,6 @@ keywords = [
     "mcp", "model-context-protocol", "mpesa", "m-pesa", "safaricom",
     "daraja", "africastalking", "kenya", "africa", "fintech", "payments", "sms"
 ]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Topic :: Office/Business :: Financial",
-    "Topic :: Communications :: Telephony",
-]
 requires-python = ">=3.10"
 dependencies = [
     "fastmcp>=2.0.0",
