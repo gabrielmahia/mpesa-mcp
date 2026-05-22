@@ -20,8 +20,19 @@ Environment variables required:
 
 import base64
 import datetime
+import hashlib
+import logging
 import os
+import re
 import time
+
+logging.basicConfig(level=logging.INFO,format='%(asctime)s %(levelname)s mpesa-mcp %(message)s')
+_log=logging.getLogger('mpesa_mcp')
+
+def _audit(tool,params,outcome):
+    safe={k:(hashlib.sha256(str(v).encode()).hexdigest()[:8]+'...' if k in {'phone_number','party_a','party_b'} else str(v)) for k,v in params.items()}
+    _log.info('TOOL=%s PARAMS=%s OUTCOME=%s',tool,safe,outcome)
+
 from typing import Annotated
 
 import africastalking
@@ -139,6 +150,13 @@ def mpesa_stk_push(
         "TransactionDesc":   description[:13],
     }
 
+    try:
+        phone_number=_vphone(phone_number)
+        amount=_vamt(amount)
+    except ValueError as ve:
+        _audit('mpesa_stk_push',{'phone':phone_number,'amount':amount},'VALIDATION_ERROR')
+        return {'error':str(ve)}
+    _audit('mpesa_stk_push',{'phone':phone_number,'amount':amount},'INITIATED')
     token = _get_mpesa_token()
     resp  = requests.post(
         f"{_mpesa_base()}/mpesa/stkpush/v1/processrequest",
