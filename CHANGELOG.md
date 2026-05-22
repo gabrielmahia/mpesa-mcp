@@ -30,6 +30,16 @@
 
 # Changelog
 
+## [0.1.9] — Security Hardening (NSA-CSI-2026)
+
+### Security
+- Added structured audit logging for all M-Pesa tool invocations (NSA CSI U/OO/6030316-26 compliance)
+- Added Kenyan phone number validation regex (`^254[17]\d8$`) — rejects malformed inputs before API calls
+- Added M-Pesa amount bounds validation [1–150,000 KES] — Safaricom STK push hard limits
+- PII fields (phone numbers) SHA-256 hashed in audit logs — prevents log-based data leakage
+- Error containment: validation failures return structured `{"error": "..."}` dicts instead of raw exceptions
+- References: NSA CSI U/OO/6030316-26 (May 2026), OWASP A08:2017
+
 ## [0.1.3] — 2026-03-30
 
 ### Added
