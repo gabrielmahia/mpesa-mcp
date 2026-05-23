@@ -11,6 +11,7 @@ Give your AI agent the ability to trigger M-Pesa payments, check transaction sta
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Glama Score](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/score.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 [![Glama](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badge)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
+[![NSA MCP Compliant](https://img.shields.io/badge/NSA%20CSI%20U%2FOO%2F6030316--26-MCP%20Security%20Compliant-blue)](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf)
 
 [![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 
@@ -46,6 +47,27 @@ mpesa-mcp is available as a hosted MCP server on [Glama](https://glama.ai/mcp/se
 
 [![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 [![mpesa-mcp score](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/score.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
+
+
+
+## Security — NSA MCP Guidance Compliant
+
+`mpesa-mcp` was updated in response to **NSA CSI U/OO/6030316-26 (May 2026)** — the NSA Artificial Intelligence Security Center's Cybersecurity Information Sheet on Model Context Protocol security.
+
+This makes `mpesa-mcp` the **first African MCP server** to document compliance against the NSA's MCP security framework.
+
+| NSA Control | Implementation |
+|---|---|
+| Parameter validation | KE phone regex `^254[17]\d{8}$` + amount bounds [1–150,000 KES] |
+| Audit logging | Structured log per tool call; phone numbers SHA-256 hashed |
+| Token lifecycle | OAuth token cached with expiry; auto-refreshed |
+| Error containment | Structured error dicts; no raw exception propagation |
+| HTTPS enforcement | All Daraja API calls HTTPS-only |
+| No hardcoded secrets | All credentials via environment variables |
+
+See [SECURITY.md](./SECURITY.md) for the full compliance table.
+
+> **Reference:** [NSA CSI_MCP_SECURITY.pdf](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf) — May 2026, UNCLASSIFIED
 
 ## Install
 
