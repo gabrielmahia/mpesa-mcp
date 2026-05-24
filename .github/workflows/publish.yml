@@ -9,10 +9,6 @@ jobs:
   publish:
     name: Build and publish
     runs-on: ubuntu-latest
-    environment: pypi
-    permissions:
-      id-token: write
-      contents: read
 
     steps:
       - uses: actions/checkout@v4
@@ -31,4 +27,4 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: twine upload dist/*
+        run: twine upload dist/* --non-interactive
