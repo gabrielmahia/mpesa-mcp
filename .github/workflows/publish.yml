@@ -20,11 +20,11 @@ jobs:
       - name: Install build tools
         run: pip install build twine
 
-      - name: Build
+      - name: Build package
         run: python -m build
 
-      - name: Publish to PyPI
+      - name: Upload to PyPI
         env:
           TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: twine upload dist/* --non-interactive
+          TWINE_PASSWORD: ${{ secrets.PYPI_UPDATED }}
+        run: twine upload dist/* --non-interactive --verbose
