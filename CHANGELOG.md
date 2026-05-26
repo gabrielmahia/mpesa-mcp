@@ -1,3 +1,19 @@
+## [0.1.9] — 2026-05-25
+
+### Security
+- NSA CSI U/OO/6030316-26 compliance: structured audit logging, KE phone validation, amount bounds
+- First African MCP server to document NSA MCP security framework alignment
+
+### Changed
+- Audit logs hash phone numbers (SHA-256) before writing — no PII in logs
+- Amount validation: [1, 150,000 KES] enforced before Daraja API call
+- Error containment: all handlers return structured dicts, no raw exceptions
+
+### Infrastructure
+- GitHub Actions CI/CD: publish to PyPI on git tag v* push (PYPI_UPDATED secret)
+- NSA compliance badge added to README
+
+
 ## [0.1.8] — 2026-04-26
 
 ### Fixed
