@@ -1,9 +1,10 @@
 {
-  "$schema": "https://glama.ai/mcp/schemas/server.json",
+  "$schema": "https://glama.ai/mcp/schemas/1.0.0/server.json",
   "name": "mpesa-mcp",
-  "description": "MCP server for M-Pesa (Safaricom Daraja) and Africa's Talking APIs. Enables AI agents to trigger STK Push payments, query transaction status, send SMS to 20+ African telecom networks, and top up airtime.",
+  "version": "0.1.9",
+  "description": "MCP server for M-PESA (Safaricom Daraja) and Africa's Talking APIs. Enables AI agents to trigger STK Push payments, query transaction status, send SMS to 20+ African telecom networks, and top up airtime across East Africa. First African mobile money API in the MCP ecosystem.",
   "license": "MIT",
-  "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
+  "homepage": "https://gabrielmahia.github.io",
   "author": {
     "name": "Gabriel Mahia",
     "email": "contact@aikungfu.dev",
@@ -23,12 +24,16 @@
     "airtime",
     "mcp",
     "model-context-protocol",
-    "east-africa"
+    "east-africa",
+    "swahili",
+    "mobile-money",
+    "lipa-na-mpesa",
+    "stk-push"
   ],
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger M-Pesa STK Push payment prompt on customer's phone",
+      "description": "Trigger M-PESA STK Push (Lipa Na M-PESA) payment prompt on a customer's phone. The customer receives a PIN prompt and confirms payment. Use for collecting payments from individuals.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -38,7 +43,7 @@
     },
     {
       "name": "mpesa_stk_query",
-      "description": "Check status of an STK Push request (poll 10-30s after push)",
+      "description": "Check the status of an STK Push request by CheckoutRequestID. Poll 10-30 seconds after initiating a push to confirm payment completion.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -48,7 +53,7 @@
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query any M-Pesa transaction by receipt number",
+      "description": "Query any M-PESA transaction by its receipt number (TransactionID). Returns transaction amount, timestamp, phone, and status.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -58,7 +63,7 @@
     },
     {
       "name": "sms_send",
-      "description": "Send SMS via Africa's Talking \u2014 15+ African markets, 1000 recipients/call",
+      "description": "Send SMS via Africa's Talking to one or many recipients across 15+ African markets. Supports up to 1000 recipients per call. Reliable delivery across Safaricom, Airtel, Telkom Kenya.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -68,7 +73,7 @@
     },
     {
       "name": "airtime_send",
-      "description": "Send mobile airtime top-up \u2014 Safaricom, Airtel, MTN, Vodafone",
+      "description": "Send mobile airtime top-up to any number across Safaricom, Airtel, MTN, Vodafone, and 20+ African networks. Specify amount in local currency or USD.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -85,23 +90,33 @@
     "pip": "mpesa-mcp",
     "uvx": "mpesa-mcp"
   },
-  "related": [
+  "relatedServers": [
     {
       "name": "wapimaji-mcp",
-      "url": "https://glama.ai/mcp/servers/gabrielmahia/wapimaji-mcp",
-      "description": "Kenya drought intelligence MCP server by the same author"
+      "url": "https://github.com/gabrielmahia/wapimaji-mcp",
+      "description": "Kenya water infrastructure MCP server \u2014 drought intelligence, borehole data"
+    },
+    {
+      "name": "swahili-health-mcp",
+      "url": "https://github.com/gabrielmahia/swahili-health-mcp",
+      "description": "Kenya DHIS2 health data MCP server \u2014 facilities, maternal health, immunization"
+    },
+    {
+      "name": "kenya-legal-rag",
+      "url": "https://github.com/gabrielmahia/kenya-legal-rag",
+      "description": "Kenya legal documents RAG MCP \u2014 Constitution, Employment Act, Land Act"
     }
   ],
   "maintainers": [
     "gabrielmahia"
   ],
-  "version": "0.1.6",
   "envVars": [
     {
       "name": "MPESA_CONSUMER_KEY",
       "description": "Safaricom Daraja consumer key from developer.safaricom.co.ke",
       "required": true,
-      "secret": true
+      "secret": true,
+      "example": "Get free sandbox key at developer.safaricom.co.ke"
     },
     {
       "name": "MPESA_CONSUMER_SECRET",
@@ -111,49 +126,55 @@
     },
     {
       "name": "MPESA_SHORTCODE",
-      "description": "M-Pesa Paybill or Till number (sandbox: 174379)",
+      "description": "M-PESA Paybill or Till number. Sandbox default: 174379",
       "required": true,
-      "secret": false
+      "secret": false,
+      "example": "174379"
     },
     {
       "name": "MPESA_PASSKEY",
-      "description": "Lipa na M-Pesa passkey from Daraja portal",
+      "description": "Lipa Na M-PESA passkey from Daraja portal. Sandbox default provided in README.",
       "required": true,
-      "secret": true
+      "secret": true,
+      "example": "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
     },
     {
       "name": "MPESA_CALLBACK_URL",
-      "description": "HTTPS URL for M-Pesa transaction callbacks",
+      "description": "HTTPS URL for M-PESA transaction result callbacks. Must be publicly reachable.",
       "required": true,
-      "secret": false
+      "secret": false,
+      "example": "https://your-domain.com/mpesa/callback"
     },
     {
       "name": "MPESA_SANDBOX",
-      "description": "true = sandbox (no real money), false = production",
+      "description": "Set to 'true' for sandbox (no real money moved). Set to 'false' for production.",
       "required": false,
-      "secret": false
+      "secret": false,
+      "example": "true",
+      "default": "true"
     },
     {
       "name": "AT_USERNAME",
-      "description": "Africa's Talking username \u2014 use 'sandbox' for testing",
+      "description": "Africa's Talking username. Use 'sandbox' for testing.",
       "required": false,
-      "secret": false
+      "secret": false,
+      "example": "sandbox"
     },
     {
       "name": "AT_API_KEY",
-      "description": "Africa's Talking API key",
+      "description": "Africa's Talking API key. Get free at africastalking.com",
       "required": false,
       "secret": true
     },
     {
       "name": "MPESA_INITIATOR_NAME",
-      "description": "M-Pesa B2C initiator name (only needed for B2C tools)",
+      "description": "M-PESA B2C initiator name. Only needed for B2C disbursement tools.",
       "required": false,
       "secret": false
     },
     {
       "name": "MPESA_SECURITY_CREDENTIAL",
-      "description": "M-Pesa B2C security credential (only for B2C tools)",
+      "description": "M-PESA B2C security credential (encrypted). Only for B2C tools.",
       "required": false,
       "secret": true
     }
@@ -161,15 +182,11 @@
   "dockerfile": "Dockerfile",
   "docker": {
     "buildSteps": [
-      "uv tool install mpesa-mcp==0.1.8",
-      "ln -s /root/.local/bin/mpesa-mcp /usr/local/bin/mpesa-mcp"
+      "pip install mpesa-mcp==0.1.9"
     ],
     "cmd": [
-      "mcp-proxy",
-      "--",
       "mpesa-mcp"
     ],
-    "pythonVersion": "3.14",
-    "note": "Build tested and verified by Glama \u2014 all 5 tools detected"
+    "pythonVersion": "3.11"
   }
 }
