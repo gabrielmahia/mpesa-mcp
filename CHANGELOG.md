@@ -1,3 +1,45 @@
+## [0.2.0] — 2026-06-04
+
+### Added — 17 new Daraja API tools
+
+**Payments:**
+- `mpesa_b2c` — Business-to-Customer disbursement (payroll, NGO incentives, agent float)
+- `mpesa_business_paybill` — B2B payment to paybill shortcode
+- `mpesa_business_buygoods` — B2B payment to till/buy-goods number
+- `mpesa_business_pochi` — Pay to Pochi la Biashara micro-SME wallet
+
+**Queries:**
+- `mpesa_account_balance` — Query shortcode balance (async)
+- `mpesa_query_org_info` — Validate shortcode name and tariff before transacting
+- `mpesa_pull_transactions` — Pull C2B reconciliation records by date range
+
+**Operations:**
+- `mpesa_reversal` — Reverse an erroneous transaction
+- `mpesa_dynamic_qr` — Generate Dynamic QR code (returns base64 PNG)
+- `mpesa_tax_remittance` — Remit tax directly to KRA (shortcode 572572)
+- `mpesa_b2b_express_checkout` — USSD Push to till for merchant-to-merchant payments
+
+**Standing Orders:**
+- `mpesa_ratiba_create` — Create M-PESA Ratiba recurring payment (daily/weekly/monthly/etc.)
+
+**Bill Manager:**
+- `mpesa_bill_manager_optin` — Enrol in Bill Manager
+- `mpesa_bill_manager_invoice` — Create customer invoice with SMS notification
+- `mpesa_bill_manager_cancel` — Cancel outstanding invoice
+
+**Identity/Fraud:**
+- `mpesa_sim_swap_query` — Detect recent SIM swap (critical fraud signal)
+- `mpesa_imsi_query` — Verify phone registration, age, and hashed IMSI for KYC/AML
+
+### Fixed
+- `mpesa_stk_push` validation references cleaned up (stale `_vphone`/`_vamt` calls removed)
+
+### Changed
+- All tools use consistent `_audit()` logging with PII hashing
+- `_at_init()` helper consolidates Africa's Talking initialization
+
+---
+
 ## [0.1.9] — 2026-05-25
 
 ### Security
