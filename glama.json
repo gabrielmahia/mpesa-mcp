@@ -1,8 +1,8 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/1.0.0/server.json",
   "name": "mpesa-mcp",
-  "version": "0.1.9",
-  "description": "MCP server for M-PESA (Safaricom Daraja) and Africa's Talking APIs. Enables AI agents to trigger STK Push payments, query transaction status, send SMS to 20+ African telecom networks, and top up airtime across East Africa. First African mobile money API in the MCP ecosystem.",
+  "version": "0.2.0",
+  "description": "MCP server for M-PESA (Safaricom Daraja) and Africa's Talking. 22 tools covering payments (STK Push, B2C, B2B, Pochi), standing orders (Ratiba), Bill Manager invoicing, Dynamic QR, tax remittance, SIM swap fraud detection, IMSI KYC, and SMS/airtime across 20+ African markets.",
   "license": "MIT",
   "homepage": "https://gabrielmahia.github.io",
   "author": {
@@ -12,73 +12,220 @@
   },
   "keywords": [
     "mpesa",
-    "m-pesa",
-    "safaricom",
     "daraja",
-    "africa",
     "kenya",
+    "africa",
     "fintech",
     "payments",
-    "sms",
-    "africa-talking",
-    "airtime",
     "mcp",
     "model-context-protocol",
+    "sms",
+    "africa-talking",
+    "qr",
+    "standing-orders",
+    "bill-manager",
+    "sim-swap",
+    "kra",
     "east-africa",
-    "swahili",
-    "mobile-money",
-    "lipa-na-mpesa",
-    "stk-push"
+    "swahili"
   ],
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger M-PESA STK Push (Lipa Na M-PESA) payment prompt on a customer's phone. The customer receives a PIN prompt and confirms payment. Use for collecting payments from individuals.",
+      "description": "Trigger M-PESA STK Push payment prompt on customer's phone",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": true
+        "idempotentHint": false
       }
     },
     {
       "name": "mpesa_stk_query",
-      "description": "Check the status of an STK Push request by CheckoutRequestID. Poll 10-30 seconds after initiating a push to confirm payment completion.",
+      "description": "Check STK Push status \u2014 poll 10-30s after push",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": true
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_b2c",
+      "description": "Business-to-Customer disbursement \u2014 payroll, NGO incentives, agent float",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_business_paybill",
+      "description": "B2B payment from shortcode to paybill number",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_business_buygoods",
+      "description": "B2B payment to till/buy-goods number",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_business_pochi",
+      "description": "Pay to Pochi la Biashara micro-SME wallet",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
       }
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query any M-PESA transaction by its receipt number (TransactionID). Returns transaction amount, timestamp, phone, and status.",
+      "description": "Query any M-PESA transaction by receipt number",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
-        "idempotentHint": true,
-        "openWorldHint": true
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_account_balance",
+      "description": "Query business account balance (async)",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_query_org_info",
+      "description": "Validate a shortcode \u2014 returns registered name and tariff",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_pull_transactions",
+      "description": "Pull C2B reconciliation records by date range",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_reversal",
+      "description": "Reverse an erroneous M-PESA transaction",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_dynamic_qr",
+      "description": "Generate Dynamic QR code \u2014 returns base64 PNG for POS/receipts",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_tax_remittance",
+      "description": "Remit tax directly to Kenya Revenue Authority (KRA shortcode 572572)",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_b2b_express_checkout",
+      "description": "USSD Push to till \u2014 merchant-to-merchant payment prompt",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_ratiba_create",
+      "description": "Create M-PESA Ratiba standing order \u2014 recurring payments (daily/weekly/monthly)",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_bill_manager_optin",
+      "description": "Enrol business in M-PESA Bill Manager",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_bill_manager_invoice",
+      "description": "Create customer invoice \u2014 triggers SMS payment notification",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": false
+      }
+    },
+    {
+      "name": "mpesa_bill_manager_cancel",
+      "description": "Cancel outstanding Bill Manager invoice",
+      "annotations": {
+        "readOnlyHint": false,
+        "destructiveHint": true,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_sim_swap_query",
+      "description": "Detect recent SIM swap \u2014 critical fraud prevention signal before B2C disbursements",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
+      }
+    },
+    {
+      "name": "mpesa_imsi_query",
+      "description": "Verify phone registration, SIM age, and hashed IMSI for KYC/AML compliance",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true
       }
     },
     {
       "name": "sms_send",
-      "description": "Send SMS via Africa's Talking to one or many recipients across 15+ African markets. Supports up to 1000 recipients per call. Reliable delivery across Safaricom, Airtel, Telkom Kenya.",
+      "description": "Send SMS to 1-1000 recipients across 15+ African telecom markets",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": true
+        "idempotentHint": false
       }
     },
     {
       "name": "airtime_send",
-      "description": "Send mobile airtime top-up to any number across Safaricom, Airtel, MTN, Vodafone, and 20+ African networks. Specify amount in local currency or USD.",
+      "description": "Send airtime top-up to MTN/Safaricom/Airtel/Vodafone subscribers",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
-        "idempotentHint": false,
-        "openWorldHint": true
+        "idempotentHint": false
       }
     }
   ],
@@ -94,17 +241,17 @@
     {
       "name": "wapimaji-mcp",
       "url": "https://github.com/gabrielmahia/wapimaji-mcp",
-      "description": "Kenya water infrastructure MCP server \u2014 drought intelligence, borehole data"
+      "description": "Kenya water infrastructure MCP"
     },
     {
       "name": "swahili-health-mcp",
       "url": "https://github.com/gabrielmahia/swahili-health-mcp",
-      "description": "Kenya DHIS2 health data MCP server \u2014 facilities, maternal health, immunization"
+      "description": "Kenya DHIS2 health data MCP"
     },
     {
       "name": "kenya-legal-rag",
       "url": "https://github.com/gabrielmahia/kenya-legal-rag",
-      "description": "Kenya legal documents RAG MCP \u2014 Constitution, Employment Act, Land Act"
+      "description": "Kenya legal documents RAG MCP"
     }
   ],
   "maintainers": [
@@ -113,10 +260,9 @@
   "envVars": [
     {
       "name": "MPESA_CONSUMER_KEY",
-      "description": "Safaricom Daraja consumer key from developer.safaricom.co.ke",
+      "description": "Safaricom Daraja consumer key",
       "required": true,
-      "secret": true,
-      "example": "Get free sandbox key at developer.safaricom.co.ke"
+      "secret": true
     },
     {
       "name": "MPESA_CONSUMER_SECRET",
@@ -126,32 +272,59 @@
     },
     {
       "name": "MPESA_SHORTCODE",
-      "description": "M-PESA Paybill or Till number. Sandbox default: 174379",
+      "description": "Paybill or till shortcode. Sandbox: 174379",
       "required": true,
       "secret": false,
       "example": "174379"
     },
     {
       "name": "MPESA_PASSKEY",
-      "description": "Lipa Na M-PESA passkey from Daraja portal. Sandbox default provided in README.",
+      "description": "Lipa Na M-PESA passkey. Sandbox value in README.",
       "required": true,
-      "secret": true,
-      "example": "bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919"
+      "secret": true
     },
     {
       "name": "MPESA_CALLBACK_URL",
-      "description": "HTTPS URL for M-PESA transaction result callbacks. Must be publicly reachable.",
+      "description": "HTTPS URL for M-PESA callbacks",
       "required": true,
-      "secret": false,
-      "example": "https://your-domain.com/mpesa/callback"
+      "secret": false
     },
     {
       "name": "MPESA_SANDBOX",
-      "description": "Set to 'true' for sandbox (no real money moved). Set to 'false' for production.",
+      "description": "true for sandbox (default), false for production",
       "required": false,
-      "secret": false,
-      "example": "true",
-      "default": "true"
+      "default": "true",
+      "example": "true"
+    },
+    {
+      "name": "MPESA_INITIATOR_NAME",
+      "description": "Required for B2C, B2B, reversals, balance, transaction status",
+      "required": false,
+      "secret": false
+    },
+    {
+      "name": "MPESA_SECURITY_CREDENTIAL",
+      "description": "Encrypted credential for B2C/B2B/reversals",
+      "required": false,
+      "secret": true
+    },
+    {
+      "name": "MPESA_RESULT_URL",
+      "description": "Async result delivery URL (defaults to MPESA_CALLBACK_URL)",
+      "required": false,
+      "secret": false
+    },
+    {
+      "name": "MPESA_TIMEOUT_URL",
+      "description": "Timeout URL (defaults to MPESA_CALLBACK_URL)",
+      "required": false,
+      "secret": false
+    },
+    {
+      "name": "MPESA_OFFICIAL_CONTACT",
+      "description": "Business phone for Bill Manager enrolment",
+      "required": false,
+      "secret": false
     },
     {
       "name": "AT_USERNAME",
@@ -162,27 +335,14 @@
     },
     {
       "name": "AT_API_KEY",
-      "description": "Africa's Talking API key. Get free at africastalking.com",
-      "required": false,
-      "secret": true
-    },
-    {
-      "name": "MPESA_INITIATOR_NAME",
-      "description": "M-PESA B2C initiator name. Only needed for B2C disbursement tools.",
-      "required": false,
-      "secret": false
-    },
-    {
-      "name": "MPESA_SECURITY_CREDENTIAL",
-      "description": "M-PESA B2C security credential (encrypted). Only for B2C tools.",
+      "description": "Africa's Talking API key",
       "required": false,
       "secret": true
     }
   ],
-  "dockerfile": "Dockerfile",
   "docker": {
     "buildSteps": [
-      "pip install mpesa-mcp==0.1.9"
+      "pip install mpesa-mcp==0.2.0"
     ],
     "cmd": [
       "mpesa-mcp"
