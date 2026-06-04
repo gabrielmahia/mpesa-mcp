@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpesa-mcp"
-version = "0.1.9"
+version = "0.2.0"
 description = "MCP server for M-Pesa (Safaricom Daraja) and Africa's Talking APIs"
 readme = "README.md"
 license = "MIT"
@@ -14,7 +14,8 @@ authors = [
 ]
 keywords = [
     "mcp", "model-context-protocol", "mpesa", "m-pesa", "safaricom",
-    "daraja", "africastalking", "kenya", "africa", "fintech", "payments", "sms"
+    "daraja", "africastalking", "kenya", "africa", "fintech", "payments", "sms",
+    "qr-code", "standing-orders", "bill-manager", "sim-swap", "kra", "east-africa"
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -38,7 +39,7 @@ Repository = "https://github.com/gabrielmahia/mpesa-mcp"
 where = ["src"]
 
 [tool.ruff]
-line-height = 100
+line-length = 100
 target-version = "py310"
 
 [tool.ruff.lint]
