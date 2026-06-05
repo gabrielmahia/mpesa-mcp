@@ -248,6 +248,22 @@ pytest tests/ -v
 Do not commit API keys. Use environment variables or a secrets manager.  
 Report vulnerabilities to: contact@aikungfu.dev
 
+
+## Research Context
+
+**MCP ecosystem benchmark** (CData, 2026): Most MCP servers achieve 60-75% accuracy on complex queries. mpesa-mcp includes explicit validation and bounds checking to exceed this baseline.
+
+**Swahili AI accuracy** (arXiv:2509.04516, 2025): AI models produce 4× more errors in Swahili than English. mpesa-mcp's Swahili-native tool descriptions are designed to minimize this gap for Swahili-speaking users by eliminating the translation step in tool selection.
+
+**MCP security research** (arXiv:2603.18063, arXiv:2603.21642, 2026): Prompt injection via tool descriptions is the primary MCP attack vector. mpesa-mcp mitigates this through static, versioned tool descriptions and strict input validation.
+
+**Related infrastructure:**
+- [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) — Kenya water/drought MCP
+- [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) — Kenya civic data MCP
+- [swahili-health-mcp](https://github.com/gabrielmahia/swahili-health-mcp) — Kenya DHIS2 health data MCP
+- [kenya-legal-rag](https://github.com/gabrielmahia/kenya-legal-rag) — Kenya legal corpus MCP
+- Full portfolio: [gabrielmahia.github.io](https://gabrielmahia.github.io)
+
 ## License
 
 [MIT](https://creativecommons.org/licenses/by-nc-nd/4.0/) — © 2026 Gabriel Mahia
