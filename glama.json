@@ -26,7 +26,6 @@
     "bill-manager",
     "sim-swap",
     "kra",
-    "east-africa",
     "swahili",
     "data-sovereignty",
     "global-south",
@@ -34,7 +33,9 @@
     "privacy",
     "open-data",
     "coordination-infrastructure",
-    "institutional-infrastructure"
+    "institutional-infrastructure",
+    "useful-rails",
+    "ai-agents"
   ],
   "tools": [
     {
