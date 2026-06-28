@@ -293,3 +293,16 @@ All MIT · All part of the East African civic AI stack
 | [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
 
 Full portfolio: [gabrielmahia.github.io](https://gabrielmahia.github.io)
+
+## Part of the East Africa Coordination Stack
+
+This MCP server is one of 32 tools in the Kenya coordination infrastructure.
+Connect it to [`africa-coord-bus`](https://github.com/gabrielmahia/africa-coord-bus) —
+the coordination event bus that routes signals between domains automatically.
+
+```bash
+pip install africa-coord-bus
+```
+
+All 32 servers: [pypi.org/user/gmahia](https://pypi.org/user/gmahia/)
+Live demo: [coord-cascade-demo](https://github.com/gabrielmahia/coord-cascade-demo)
