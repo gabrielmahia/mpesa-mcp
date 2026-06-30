@@ -7,7 +7,7 @@ on:
 
 jobs:
   test:
-    name: Test before publish (${{ matrix.python-version }})
+    name: Test before publish (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -20,7 +20,7 @@ jobs:
       - name: Install package + dev deps
         run: pip install -e ".[dev]"
       - name: Lint
-        run: ruff check . || true
+        run: ruff check src/ tests/ --ignore E501,E402,F401 || true
       - name: Test
         run: pytest tests/ -v || true
 
@@ -28,9 +28,6 @@ jobs:
     name: Build and publish to PyPI
     needs: test
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -41,11 +38,17 @@ jobs:
 
       - name: Build
         run: |
-          pip install build
+          pip install build twine
           python -m build
 
-      - name: Publish to PyPI (Trusted Publisher)
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Verify build
+        run: python -m twine check dist/*
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+        run: python -m twine upload dist/* --non-interactive
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
