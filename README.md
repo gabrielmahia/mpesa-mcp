@@ -55,7 +55,7 @@ mpesa-mcp is available as a hosted MCP server on [Glama](https://glama.ai/mcp/se
 
 `mpesa-mcp` was updated in response to **NSA CSI U/OO/6030316-26 (May 2026)** — the NSA Artificial Intelligence Security Center's Cybersecurity Information Sheet on Model Context Protocol security.
 
-This makes `mpesa-mcp` the **first African MCP server** to document compliance against the NSA's MCP security framework.
+The implementation below documents compliance against the NSA's MCP security framework, control by control.
 
 | NSA Control | Implementation |
 |---|---|
