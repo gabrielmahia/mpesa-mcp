@@ -1,0 +1,31 @@
+{
+  "schema_version": "2026-mcp-server-card-draft-1",
+  "name": "mpesa-mcp",
+  "description": "M-PESA Daraja API and Africa's Talking integration as MCP tools. Financial coordination for East Africa.",
+  "version": "0.2.1",
+  "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
+  "pypi": "https://pypi.org/project/mpesa-mcp/",
+  "tools_count": 23,
+  "tested_models": [
+    "claude-sonnet-5",
+    "claude-opus-4-8"
+  ],
+  "domains": [
+    "financial-inclusion",
+    "mobile-money",
+    "sms",
+    "kenya",
+    "east-africa"
+  ],
+  "transport": [
+    "stdio"
+  ],
+  "auth": "environment-variables",
+  "languages": [
+    "en",
+    "sw"
+  ],
+  "security_contact": "security@mngonline.dev",
+  "license": "MIT",
+  "dpga_review": "GID0093741"
+}
