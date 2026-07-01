@@ -16,6 +16,20 @@ Give your AI agent the ability to trigger M-Pesa payments, check transaction sta
 
 [![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 
+
+## Tested With
+
+```
+claude-sonnet-5  (recommended — call get_model_hint() for guidance)
+claude-opus-4-8  (for highest-accuracy compliance reasoning)
+```
+
+Claude Sonnet 5 (released June 30, 2026) finishes multi-step M-PESA workflows
+without stopping short and self-corrects tool-call errors without prompting.
+Terminal-Bench score 80.4% vs Sonnet 4.6's 67.0% — the benchmark most
+analogous to payment agent work.
+
+
 ## Why this exists
 
 M-Pesa processes more transactions per day than PayPal does in Africa. Africa's Talking
