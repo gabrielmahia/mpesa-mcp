@@ -320,3 +320,7 @@ pip install africa-coord-bus
 
 All 32 servers: [pypi.org/user/gmahia](https://pypi.org/user/gmahia/)
 Live demo: [coord-cascade-demo](https://github.com/gabrielmahia/coord-cascade-demo)
+
+## IP & Collaboration
+
+MIT licensed. Feedback via GitHub Issues only — pull requests are not accepted. Demo data is labeled DEMO and is not suitable for operational decisions. Full policy: [docs/architecture/IP_POLICY.md](docs/architecture/IP_POLICY.md). Security reports: see [SECURITY.md](SECURITY.md).
