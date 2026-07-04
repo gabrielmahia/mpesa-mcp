@@ -941,3 +941,7 @@ def get_model_hint() -> dict:
 
 if __name__ == "__main__":
     mcp.run()
+
+def main() -> None:
+    """Console entry point."""
+    mcp.run()
