@@ -1,7 +1,7 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
   "name": "io.github.gabrielmahia/mpesa-mcp",
-  "description": "mpesa-mcp",
+  "description": "MCP server for M-Pesa mobile-money integration in Kenya",
   "repository": {
     "url": "https://github.com/gabrielmahia/mpesa-mcp",
     "source": "github"
