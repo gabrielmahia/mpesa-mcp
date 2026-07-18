@@ -43,6 +43,10 @@ mpesa-mcp = "mpesa_mcp.server:mcp.run"
 Homepage = "https://github.com/gabrielmahia/mpesa-mcp"
 Repository = "https://github.com/gabrielmahia/mpesa-mcp"
 "Bug Tracker" = "https://github.com/gabrielmahia/mpesa-mcp/issues"
+Documentation = "https://github.com/gabrielmahia/nairobi-stack"
+"MCP Registry" = "https://registry.modelcontextprotocol.io"
+Datasets = "https://huggingface.co/gmahia"
+Evaluation = "https://github.com/gabrielmahia/kipimo"
 
 [tool.setuptools.packages.find]
 where = ["src"]
