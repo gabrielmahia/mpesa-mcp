@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpesa-mcp"
-version = "0.2.4"
+version = "0.2.5"
 description = "MCP server for M-Pesa Daraja API and Africa's Talking. 23 tools including get_model_hint(). Tested with claude-sonnet-5."
 classifiers = [
+    "License :: OSI Approved :: MIT License",
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
