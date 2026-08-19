@@ -29,10 +29,17 @@ def test_tools_registered():
 
 
 def test_tool_count():
+    """Guard against accidental tool loss.
+
+    Asserts a floor rather than an exact count: an exact assertion breaks every
+    time a tool is legitimately added (which is how this test came to assert 5
+    while the server registered 23), whereas a floor still catches the failure
+    that actually matters — tools silently disappearing from registration.
+    """
     import asyncio
     from mpesa_mcp import mcp
     tools = asyncio.run(mcp.list_tools())
-    assert len(tools) == 5, f"Expected 5 tools, got {len(tools)}"
+    assert len(tools) >= 23, f"Tool regression: expected >=23, got {len(tools)}"
 
 
 def test_normalize_phone():
