@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with: {python-version: '3.11'}
       - run: pip install -r requirements.txt 2>/dev/null || true
       - run: python -m py_compile $(find . -name "*.py" -not -path "./.venv/*") && echo "✅ All Python files valid"
