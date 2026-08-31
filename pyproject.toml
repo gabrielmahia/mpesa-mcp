@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpesa-mcp"
-version = "0.2.6"
+version = "0.2.7"
 description = "MCP server for M-Pesa Daraja API and Africa's Talking. 23 tools including get_model_hint(). Tested with claude-sonnet-5."
 classifiers = [
     "Development Status :: 4 - Beta",
