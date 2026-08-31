@@ -193,6 +193,11 @@ def mpesa_stk_query(
     """
     Check STK Push status. Poll 10-30s after mpesa_stk_push.
     ResultCode 0 = success, 1032 = cancelled, 1037 = timed out.
+
+    IMPORTANT: Daraja's STK Push has a ~60s window and the callback is NOT
+    guaranteed to fire if the user dismisses the prompt. Poll this tool 2-3
+    times across that window before treating silence as failure — a single
+    empty response does not mean the payment failed.
     """
     shortcode = os.environ["MPESA_SHORTCODE"]
     passkey = os.environ["MPESA_PASSKEY"]
@@ -895,17 +900,50 @@ def sms_send(
     }
 
 
+# E.164 country prefix -> ISO currency. Used to catch the silent-wrong-amount
+# failure: an agent topping up a +255 (TZS) number while currency_code is left at
+# the KES default would previously send the wrong denomination with no error.
+_COUNTRY_CURRENCY = {
+    "254": "KES", "255": "TZS", "256": "UGX", "250": "RWF", "257": "BIF",
+    "234": "NGN", "233": "GHS", "27": "ZAR", "251": "ETB", "265": "MWK",
+    "260": "ZMW", "225": "XOF", "237": "XAF",
+}
+
+
+def _expected_currency(phone: str) -> str | None:
+    digits = "".join(ch for ch in (phone or "") if ch.isdigit())
+    for length in (3, 2):
+        if digits[:length] in _COUNTRY_CURRENCY:
+            return _COUNTRY_CURRENCY[digits[:length]]
+    return None
+
+
 @mcp.tool(annotations={"title": "Send Airtime", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def airtime_send(
     phone: Annotated[str, "Recipient phone in E.164 format e.g. '+254712345678'"],
-    amount: Annotated[str, "Amount as string e.g. '50' (KES 50). Min KES 10 in production."],
-    currency_code: Annotated[str, "ISO currency: KES, NGN, GHS, UGX, TZS, RWF, ZAR"] = "KES",
+    amount: Annotated[str, "Amount as string e.g. '50'. Denominated in currency_code, NOT always KES."],
+    currency_code: Annotated[str, "ISO currency: KES, TZS, UGX, RWF, NGN, GHS, ZAR, ETB, MWK, ZMW. MUST match the recipient's country — a mismatch is rejected, not silently sent."] = "KES",
 ) -> dict:
     """
     Send airtime top-up to MTN/Safaricom/Airtel/Vodafone subscribers.
     Use for NGO field incentives, survey rewards, agent payouts.
+
+    Currency is validated against the recipient's country code. Sending a KES
+    amount to a Tanzanian number is rejected with the correct currency named,
+    rather than topping up the wrong denomination silently.
+
     No real airtime sent in sandbox mode (AT_USERNAME=sandbox).
     """
+    expected = _expected_currency(phone)
+    if expected and currency_code.upper() != expected:
+        return {
+            "success": False,
+            "error": (f"Currency mismatch: {phone} is a {expected} country but "
+                      f"currency_code='{currency_code}'. Pass currency_code='{expected}' "
+                      f"with the amount denominated in {expected}. No airtime was sent."),
+            "expected_currency": expected,
+            "provided_currency": currency_code.upper(),
+        }
     _at_init()
     at = africastalking.Airtime
     response = at.send(phone_number=phone, amount=amount, currency_code=currency_code)
