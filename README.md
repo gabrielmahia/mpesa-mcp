@@ -116,6 +116,8 @@ AT_API_KEY=your_at_api_key
 
 ### Sandbox credentials
 
+New Daraja account, or setting this up on a new machine? Follow the [sandbox setup guide](https://github.com/gabrielmahia/mpesa-python/blob/main/docs/SANDBOX_SETUP.md): it records the verified procedure (create the app with only **Lipa Na M-Pesa Sandbox** ticked, use the published test shortcode and passkey, point `MPESA_CALLBACK_URL` at a public HTTPS address you can watch) and what a healthy result looks like. Consumer keys cannot be shared, so each developer creates their own free sandbox app.
+
 **M-Pesa sandbox:** https://developer.safaricom.co.ke — create a free app to get test credentials.
 - Test shortcode: `174379`
 - Test passkey: `bfb279f9aa9bdbcf158e97dd71a467cd2e0c893059b10f78e6b72ada1ed2c919`
