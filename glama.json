@@ -1,8 +1,8 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/1.0.0/server.json",
   "name": "mpesa-mcp",
-  "version": "0.2.0",
-  "description": "MCP server for M-PESA (Safaricom Daraja) and Africa's Talking. 22 tools covering payments (STK Push, B2C, B2B, Pochi), standing orders (Ratiba), Bill Manager invoicing, Dynamic QR, tax remittance, SIM swap fraud detection, IMSI KYC, and SMS/airtime across 20+ African markets.",
+  "version": "0.2.7",
+  "description": "MCP server for M-Pesa Daraja API and Africa's Talking. 23 tools including get_model_hint(). Tested with claude-sonnet-5.",
   "license": "MIT",
   "homepage": "https://gabrielmahia.github.io",
   "author": {
@@ -40,7 +40,7 @@
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger M-PESA STK Push payment prompt on customer's phone",
+      "description": "Trigger M-Pesa STK Push — sends payment prompt to customer's phone.\nCustomer enters M-PESA PIN to complete payment.\nReturns CheckoutRequestID; poll mpesa_stk_query after 10-30 seconds.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -49,7 +49,7 @@
     },
     {
       "name": "mpesa_stk_query",
-      "description": "Check STK Push status \u2014 poll 10-30s after push",
+      "description": "Check STK Push status. Poll 10-30s after mpesa_stk_push.\nResultCode 0 = success, 1032 = cancelled, 1037 = timed out.\n\nIMPORTANT: Daraja's STK Push has a ~60s window and the callback is NOT\nguaranteed to fire if the user dismisses the prompt. Poll this tool 2-3\ntimes across that window before treating silence as failure — a single\nempty response does not mean the payment failed.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -58,7 +58,7 @@
     },
     {
       "name": "mpesa_b2c",
-      "description": "Business-to-Customer disbursement \u2014 payroll, NGO incentives, agent float",
+      "description": "Business To Customer disbursement — send money from shortcode to phone.\nUse for payroll, NGO field incentives, agent float, survey rewards.\nResult delivered async to MPESA_RESULT_URL.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL env vars.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -67,7 +67,7 @@
     },
     {
       "name": "mpesa_business_paybill",
-      "description": "B2B payment from shortcode to paybill number",
+      "description": "Pay directly from business shortcode to another paybill number.\nUse for supplier payments, utility bills, inter-business transfers.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -76,7 +76,7 @@
     },
     {
       "name": "mpesa_business_buygoods",
-      "description": "B2B payment to till/buy-goods number",
+      "description": "Pay from business shortcode to a till/buy-goods number.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -85,7 +85,7 @@
     },
     {
       "name": "mpesa_business_pochi",
-      "description": "Pay to Pochi la Biashara micro-SME wallet",
+      "description": "Pay from business shortcode to a Pochi la Biashara micro-SME wallet.\nUsed for micro-enterprise supplier payments and informal sector settlements.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -94,7 +94,7 @@
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query any M-PESA transaction by receipt number",
+      "description": "Query status of any M-Pesa transaction by receipt number.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.\nResult delivered async to MPESA_RESULT_URL.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -103,7 +103,7 @@
     },
     {
       "name": "mpesa_account_balance",
-      "description": "Query business account balance (async)",
+      "description": "Query current balance of the business M-Pesa account (shortcode/till).\nResult delivered async to MPESA_RESULT_URL.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -112,7 +112,7 @@
     },
     {
       "name": "mpesa_query_org_info",
-      "description": "Validate a shortcode \u2014 returns registered name and tariff",
+      "description": "Validate a shortcode — returns the registered name and tariff type.\nUse before sending B2B payments to confirm the destination shortcode is correct.\nPrevents accidental payments to wrong paybill numbers.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -121,7 +121,7 @@
     },
     {
       "name": "mpesa_pull_transactions",
-      "description": "Pull C2B reconciliation records by date range",
+      "description": "Pull all C2B transactions for reconciliation within a date range.\nReturns customer payments to your shortcode for audit and reconciliation.\nMax range: 48 hours per call. Max 10,000 records per call.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -130,7 +130,7 @@
     },
     {
       "name": "mpesa_reversal",
-      "description": "Reverse an erroneous M-PESA transaction",
+      "description": "Reverse an erroneous M-Pesa transaction.\nUse when a payment was sent to the wrong number or wrong amount.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.\nResult delivered async to MPESA_RESULT_URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -139,7 +139,7 @@
     },
     {
       "name": "mpesa_dynamic_qr",
-      "description": "Generate Dynamic QR code \u2014 returns base64 PNG for POS/receipts",
+      "description": "Generate a Dynamic M-PESA QR code for a specific payment amount.\nCustomer scans QR with their M-PESA app — amount pre-fills automatically.\nReturns base64-encoded QR image. Use for receipts, invoices, POS displays.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -148,7 +148,7 @@
     },
     {
       "name": "mpesa_tax_remittance",
-      "description": "Remit tax directly to Kenya Revenue Authority (KRA shortcode 572572)",
+      "description": "Remit tax directly from M-PESA business account to Kenya Revenue Authority.\nProvide the KRA Payment Registration Number (PRN) as account_reference.\nKRA shortcode: 572572. Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -157,7 +157,7 @@
     },
     {
       "name": "mpesa_b2b_express_checkout",
-      "description": "USSD Push to till \u2014 merchant-to-merchant payment prompt",
+      "description": "Initiate USSD Push to till — enables merchant-to-merchant payments.\nRecipient merchant receives a USSD prompt to confirm payment from their till.\nUse for wholesale supplier payments between Lipa Na M-PESA merchants.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -166,7 +166,7 @@
     },
     {
       "name": "mpesa_ratiba_create",
-      "description": "Create M-PESA Ratiba standing order \u2014 recurring payments (daily/weekly/monthly)",
+      "description": "Create an M-PESA Ratiba standing order — automated recurring payments.\nCustomer authorizes once; payments happen automatically on schedule.\nPerfect for subscription billing, rent collection, loan repayments, SACCO contributions.\nReturns a standing order ID to manage/cancel later.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -175,7 +175,7 @@
     },
     {
       "name": "mpesa_bill_manager_optin",
-      "description": "Enrol business in M-PESA Bill Manager",
+      "description": "Enrol your business in M-PESA Bill Manager.\nMust be called once before creating invoices.\nAfter opt-in, customers can pay your invoices directly via M-PESA.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -184,7 +184,7 @@
     },
     {
       "name": "mpesa_bill_manager_invoice",
-      "description": "Create customer invoice \u2014 triggers SMS payment notification",
+      "description": "Create a Bill Manager invoice — customer receives SMS with payment link.\nThey can pay directly via M-PESA by clicking the link or using the paybill.\nReturns invoice ID. Use mpesa_bill_manager_cancel to void outstanding invoices.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -193,7 +193,7 @@
     },
     {
       "name": "mpesa_bill_manager_cancel",
-      "description": "Cancel outstanding Bill Manager invoice",
+      "description": "Cancel an outstanding Bill Manager invoice.\nCustomer will no longer be able to pay the cancelled invoice.\nUse when an order is cancelled or a duplicate invoice was created.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -202,7 +202,7 @@
     },
     {
       "name": "mpesa_sim_swap_query",
-      "description": "Detect recent SIM swap \u2014 critical fraud prevention signal before B2C disbursements",
+      "description": "Check if a phone number's SIM card was recently swapped.\nCritical fraud prevention signal — SIM swaps often precede account takeovers.\nUse before high-value B2C disbursements to verify recipient identity is stable.\nReturns swap status and last swap date.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -211,7 +211,7 @@
     },
     {
       "name": "mpesa_imsi_query",
-      "description": "Verify phone registration, SIM age, and hashed IMSI for KYC/AML compliance",
+      "description": "Verify a Safaricom number — returns registration date, SIM age, last swap, and hashed IMSI.\nEnhanced KYC/AML signal for financial services compliance.\nOlder SIMs with no recent swaps have lower fraud risk.\nReturns data suitable for risk scoring without exposing raw IMSI.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -220,7 +220,7 @@
     },
     {
       "name": "sms_send",
-      "description": "Send SMS to 1-1000 recipients across 15+ African telecom markets",
+      "description": "Send SMS to 1-1000 recipients via Africa's Talking.\nWorks across Kenya, Nigeria, Ghana, Tanzania, Uganda, Rwanda and 15+ more.\nReturns per-recipient status and cost breakdown.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -229,12 +229,16 @@
     },
     {
       "name": "airtime_send",
-      "description": "Send airtime top-up to MTN/Safaricom/Airtel/Vodafone subscribers",
+      "description": "Send airtime top-up to MTN/Safaricom/Airtel/Vodafone subscribers.\nUse for NGO field incentives, survey rewards, agent payouts.\n\nCurrency is validated against the recipient's country code. Sending a KES\namount to a Tanzanian number is rejected with the correct currency named,\nrather than topping up the wrong denomination silently.\n\nNo real airtime sent in sandbox mode (AT_USERNAME=sandbox).",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
         "idempotentHint": false
       }
+    },
+    {
+      "name": "get_model_hint",
+      "description": "Returns the recommended AI model for using mpesa-mcp tools.\nCall this first when selecting a model to pair with mpesa-mcp."
     }
   ],
   "repository": {
