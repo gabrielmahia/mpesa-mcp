@@ -305,14 +305,14 @@ All MIT · All part of the East African civic AI stack
 | Package | Install | Description |
 |---------|---------|-------------|
 | [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Kenya drought intelligence MCP server |
-| [kenya-health-mcp](https://github.com/gabrielmahia/kenya-health-mcp) | `pip install kenya-health-mcp` | Kenya health data MCP — NHIF, facilities, maternal, rights |
+| [kenya-health-mcp](https://github.com/gabrielmahia/kenya-health-mcp) | `pip install kenya-health-mcp` | Kenya health data MCP — SHA/SHIF, facilities, maternal, rights |
 | [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
 
 Full portfolio: [gabrielmahia.github.io](https://gabrielmahia.github.io)
 
 ## Part of the East Africa Coordination Stack
 
-This MCP server is one of 32 tools in the Kenya coordination infrastructure.
+This MCP server is part of the Kenya coordination infrastructure.
 Connect it to [`africa-coord-bus`](https://github.com/gabrielmahia/africa-coord-bus) —
 the coordination event bus that routes signals between domains automatically.
 
@@ -320,7 +320,7 @@ the coordination event bus that routes signals between domains automatically.
 pip install africa-coord-bus
 ```
 
-All 32 servers: [pypi.org/user/gmahia](https://pypi.org/user/gmahia/)
+All servers: [pypi.org/user/gmahia](https://pypi.org/user/gmahia/)
 Live demo: [coord-cascade-demo](https://github.com/gabrielmahia/coord-cascade-demo)
 
 ## IP & Collaboration
@@ -330,7 +330,7 @@ MIT licensed. Feedback via GitHub Issues only — pull requests are not accepted
 <!-- interconnect:v1 -->
 ## Part of the East Africa coordination stack
 
-- **Install & run:** `pip install reli-cli && reli list` — 33 MCP servers on the [official MCP Registry](https://registry.modelcontextprotocol.io) under `io.github.gabrielmahia`
+- **Install & run:** `pip install reli-cli && reli list` — the MCP servers on the [official MCP Registry](https://registry.modelcontextprotocol.io) under `io.github.gabrielmahia`
 - **Evaluate any model on Swahili agent tasks:** [kipimo](https://github.com/gabrielmahia/kipimo) · [dataset](https://huggingface.co/datasets/gmahia/kipimo) · [leaderboard](https://huggingface.co/spaces/gmahia/kipimo-leaderboard)
 - **Coordinate across servers:** [africa-coord-bus](https://pypi.org/project/africa-coord-bus/) — offline-first event bus with a built-in Kenya routing table
 - **Datasets:** [huggingface.co/gmahia](https://huggingface.co/gmahia) · **Docs hub:** [nairobi-stack](https://github.com/gabrielmahia/nairobi-stack)
