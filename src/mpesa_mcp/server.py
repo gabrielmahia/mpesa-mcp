@@ -65,6 +65,9 @@ def _audit(tool, params, outcome):
     _log.info("TOOL=%s PARAMS=%s OUTCOME=%s", tool, safe, outcome)
 
 
+# Annotations tell clients which tools are safe to auto-approve (read-only, no side effects).
+READ_ONLY = {"readOnlyHint": True, "idempotentHint": True, "openWorldHint": False}
+
 mcp = FastMCP(
     name="mpesa-mcp",
     instructions=(
@@ -957,7 +960,7 @@ def airtime_send(
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 
-@mcp.tool()
+@mcp.tool(annotations={"title": "Model Hint", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 def get_model_hint() -> dict:
     """
     Returns the recommended AI model for using mpesa-mcp tools.

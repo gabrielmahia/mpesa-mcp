@@ -1,14 +1,27 @@
 name: CI
 
-permissions:
-  contents: read
-on: [push, pull_request]
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
 jobs:
-  syntax-check:
+  test:
+    name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
-        with: {python-version: '3.11'}
-      - run: pip install -r requirements.txt 2>/dev/null || true
-      - run: python -m py_compile $(find . -name "*.py" -not -path "./.venv/*") && echo "✅ All Python files valid"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install this repository's code (not the published package)
+        run: pip install --upgrade pip && pip install -e . pytest ruff
+      - name: Lint
+        run: ruff check . --ignore E501 --ignore F401
+      - name: Test
+        run: python -m pytest tests -q

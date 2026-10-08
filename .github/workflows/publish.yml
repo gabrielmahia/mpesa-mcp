@@ -1,59 +1,62 @@
-name: Publish to PyPI
+name: Publish
 
-permissions:
-  contents: read
+# One workflow, in order: test -> PyPI (Trusted Publisher, no token) -> MCP registry.
+# The registry job needs the PyPI job, so it can never publish a version PyPI does not have yet.
+#
+# One-time setup on pypi.org (project -> Manage -> Publishing -> Add a new publisher -> GitHub):
+#   Owner: gabrielmahia   Repository: mpesa-mcp   Workflow name: publish.yml   Environment name: pypi
+# To release: bump the version in pyproject.toml and server.json, merge, then push a tag:  git tag vX.Y.Z && git push origin vX.Y.Z
 
 on:
   push:
-    tags:
-      - "v*"
+    tags: ["v*"]
+  workflow_dispatch:
 
 jobs:
   test:
-    name: Test before publish (Python ${{ matrix.python-version }})
+    name: Test before publish
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: ["3.10", "3.11", "3.12"]
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
-      - name: Install package + dev deps
-        run: pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check src/ tests/ --ignore E501,E402,F401 || true
-      - name: Test
-        run: pytest tests/ -v || true
+          python-version: "3.12"
+      - run: pip install -e . pytest
+      - run: python -m pytest tests -q
 
-  publish:
+  pypi:
     name: Build and publish to PyPI
     needs: test
     runs-on: ubuntu-latest
-
+    environment:
+      name: pypi
+      url: https://pypi.org/p/mpesa-mcp
+    permissions:
+      id-token: write   # Trusted Publisher (OIDC): no API token is stored anywhere
     steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
+      - run: pip install build && python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true   # a re-run, or a version uploaded by hand, does not fail
 
-      - name: Build
+  registry:
+    name: Publish to MCP Registry
+    needs: pypi
+    if: github.event_name == 'push'   # a manual run is a dry run of the PyPI job only
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install MCP Publisher
         run: |
-          pip install build twine
-          python -m build
-
-      - name: Verify build
-        run: python -m twine check dist/*
-
-      - name: Publish to PyPI
-        env:
-          TWINE_USERNAME: __token__
-          TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
-        run: python -m twine upload dist/* --non-interactive
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          generate_release_notes: true
+          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+      - name: Login to MCP Registry
+        run: ./mcp-publisher login github-oidc
+      - name: Publish to MCP Registry
+        run: ./mcp-publisher publish
