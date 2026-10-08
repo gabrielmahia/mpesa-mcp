@@ -14,6 +14,7 @@ def test_import():
 
 def test_tools_registered():
     import asyncio
+
     from mpesa_mcp import mcp
     tools = asyncio.run(mcp.list_tools())
     names = [t.name for t in tools]
@@ -37,6 +38,7 @@ def test_tool_count():
     that actually matters — tools silently disappearing from registration.
     """
     import asyncio
+
     from mpesa_mcp import mcp
     tools = asyncio.run(mcp.list_tools())
     assert len(tools) >= 23, f"Tool regression: expected >=23, got {len(tools)}"
