@@ -103,6 +103,51 @@ def _get_mpesa_token() -> str:
     return _token_cache["token"]  # type: ignore[return-value]
 
 
+# ── Bounded authorization for tools that send money OUT ────────────────────────────────────────────────────────────────────────────────
+# A language model can be talked into paying anyone any amount (prompt injection against payment tools is a documented attack on agent payment
+# protocols). In LIVE mode these tools therefore need the user's explicit approval (confirm_send=true) and stay under a per-transaction cap.
+DEFAULT_LIVE_CAP_KES = 100_000
+
+
+def _is_sandbox() -> bool:
+    return os.environ.get("MPESA_SANDBOX", "true").lower() == "true"
+
+
+def _max_amount() -> int:
+    """MPESA_MAX_AMOUNT_KES: per-transaction cap in live mode (default 100,000; 0 or 'none' = no cap, an explicit opt-out)."""
+    raw = os.environ.get("MPESA_MAX_AMOUNT_KES", "").strip().lower()
+    if not raw:
+        return DEFAULT_LIVE_CAP_KES
+    if raw in ("0", "none", "unlimited"):
+        return 0
+    try:
+        return max(int(raw), 0)
+    except ValueError:
+        return DEFAULT_LIVE_CAP_KES
+
+
+def _guard(tool: str, amount, confirm_send: bool):
+    """None if the call may proceed; otherwise the refusal to return to the model. The sandbox is never restricted."""
+    if _is_sandbox():
+        return None
+    try:
+        value = float(amount)
+    except (TypeError, ValueError):
+        value = -1
+    if value <= 0:
+        _audit(tool, {"amount": amount}, "BLOCKED_INVALID_AMOUNT")
+        return {"success": False, "sandbox": False, "error": "Amount must be a positive number."}
+    if os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false" and confirm_send is not True:
+        _audit(tool, {"amount": amount}, "BLOCKED_NO_CONFIRMATION")
+        return {"success": False, "sandbox": False, "error": "Confirmation required: this tool sends money out of the business account. Show the user the recipient and amount, and call again with confirm_send=true only after they explicitly approve."}
+    cap = _max_amount()
+    if cap and value > cap:
+        _audit(tool, {"amount": amount}, "BLOCKED_OVER_CAP")
+        return {"success": False, "sandbox": False, "error": f"Amount {value:,.0f} exceeds the per-transaction cap of KES {cap:,}. An operator can change it with MPESA_MAX_AMOUNT_KES (0 = no cap)."}
+    return None
+
+
+
 def _mpesa_base() -> str:
     sandbox = os.environ.get("MPESA_SANDBOX", "true").lower() == "true"
     return "https://sandbox.safaricom.co.ke" if sandbox else "https://api.safaricom.co.ke"
@@ -226,6 +271,7 @@ def mpesa_b2c(
     command_id: Annotated[str, "SalaryPayment | BusinessPayment | PromotionPayment"] = "BusinessPayment",
     remarks: Annotated[str, "Remarks (max 100 chars)"] = "B2C via mpesa-mcp",
     occasion: Annotated[str, "Optional occasion label"] = "",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Business To Customer disbursement — send money from shortcode to phone.
@@ -233,6 +279,9 @@ def mpesa_b2c(
     Result delivered async to MPESA_RESULT_URL.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL env vars.
     """
+    blocked = _guard("mpesa_b2c", amount, confirm_send)
+    if blocked:
+        return blocked
     phone = _normalize_phone(phone)
     _audit("mpesa_b2c", {"phone": phone, "amount": amount}, "INITIATED")
     token = _get_mpesa_token()
@@ -271,12 +320,16 @@ def mpesa_business_paybill(
     amount: Annotated[int, "Amount in KES"],
     account_reference: Annotated[str, "Account number at destination paybill"],
     remarks: Annotated[str, "Transaction remarks"] = "B2B PayBill via mpesa-mcp",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Pay directly from business shortcode to another paybill number.
     Use for supplier payments, utility bills, inter-business transfers.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
+    blocked = _guard("mpesa_business_paybill", amount, confirm_send)
+    if blocked:
+        return blocked
     _audit("mpesa_business_paybill", {"receiver": receiver_paybill, "amount": amount}, "INITIATED")
     token = _get_mpesa_token()
     resp = requests.post(
@@ -308,11 +361,15 @@ def mpesa_business_buygoods(
     till_number: Annotated[str, "Destination till number (Buy Goods)"],
     amount: Annotated[int, "Amount in KES"],
     remarks: Annotated[str, "Transaction remarks"] = "B2B BuyGoods via mpesa-mcp",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Pay from business shortcode to a till/buy-goods number.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
+    blocked = _guard("mpesa_business_buygoods", amount, confirm_send)
+    if blocked:
+        return blocked
     _audit("mpesa_business_buygoods", {"till": till_number, "amount": amount}, "INITIATED")
     token = _get_mpesa_token()
     resp = requests.post(
@@ -344,12 +401,16 @@ def mpesa_business_pochi(
     phone: Annotated[str, "Pochi wallet owner phone number"],
     amount: Annotated[int, "Amount in KES"],
     remarks: Annotated[str, "Remarks"] = "Pochi payment via mpesa-mcp",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Pay from business shortcode to a Pochi la Biashara micro-SME wallet.
     Used for micro-enterprise supplier payments and informal sector settlements.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
+    blocked = _guard("mpesa_business_pochi", amount, confirm_send)
+    if blocked:
+        return blocked
     phone = _normalize_phone(phone)
     _audit("mpesa_business_pochi", {"phone": phone, "amount": amount}, "INITIATED")
     token = _get_mpesa_token()
@@ -508,6 +569,7 @@ def mpesa_reversal(
     transaction_id: Annotated[str, "M-Pesa receipt to reverse e.g. QKL8XXXXXX"],
     amount: Annotated[int, "Amount to reverse in KES"],
     remarks: Annotated[str, "Reason for reversal"] = "Reversal via mpesa-mcp",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Reverse an erroneous M-Pesa transaction.
@@ -515,6 +577,9 @@ def mpesa_reversal(
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     Result delivered async to MPESA_RESULT_URL.
     """
+    blocked = _guard("mpesa_reversal", amount, confirm_send)
+    if blocked:
+        return blocked
     _audit("mpesa_reversal", {"transaction_id": transaction_id, "amount": amount}, "INITIATED")
     token = _get_mpesa_token()
     resp = requests.post(
@@ -587,12 +652,16 @@ def mpesa_tax_remittance(
     amount: Annotated[int, "Tax amount in KES"],
     account_reference: Annotated[str, "KRA Payment Registration Number (PRN)"],
     remarks: Annotated[str, "Remittance remarks"] = "Tax remittance via mpesa-mcp",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Remit tax directly from M-PESA business account to Kenya Revenue Authority.
     Provide the KRA Payment Registration Number (PRN) as account_reference.
     KRA shortcode: 572572. Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
+    blocked = _guard("mpesa_tax_remittance", amount, confirm_send)
+    if blocked:
+        return blocked
     KRA_SHORTCODE = "572572"
     _audit("mpesa_tax_remittance", {"amount": amount, "prn": account_reference}, "INITIATED")
     token = _get_mpesa_token()
@@ -626,6 +695,7 @@ def mpesa_b2b_express_checkout(
     amount: Annotated[int, "Amount in KES"],
     account_reference: Annotated[str, "Account reference for the transaction"],
     remarks: Annotated[str, "Remarks"] = "B2B Express via mpesa-mcp",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Initiate USSD Push to till — enables merchant-to-merchant payments.
@@ -633,6 +703,9 @@ def mpesa_b2b_express_checkout(
     Use for wholesale supplier payments between Lipa Na M-PESA merchants.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
+    blocked = _guard("mpesa_b2b_express_checkout", amount, confirm_send)
+    if blocked:
+        return blocked
     _audit("mpesa_b2b_express", {"till": receiver_till, "amount": amount}, "INITIATED")
     token = _get_mpesa_token()
     resp = requests.post(
@@ -926,6 +999,7 @@ def airtime_send(
     phone: Annotated[str, "Recipient phone in E.164 format e.g. '+254712345678'"],
     amount: Annotated[str, "Amount as string e.g. '50'. Denominated in currency_code, NOT always KES."],
     currency_code: Annotated[str, "ISO currency: KES, TZS, UGX, RWF, NGN, GHS, ZAR, ETB, MWK, ZMW. MUST match the recipient's country — a mismatch is rejected, not silently sent."] = "KES",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved this exact payment (recipient and amount). Ignored in sandbox."] = False,
 ) -> dict:
     """
     Send airtime top-up to MTN/Safaricom/Airtel/Vodafone subscribers.
@@ -937,6 +1011,9 @@ def airtime_send(
 
     No real airtime sent in sandbox mode (AT_USERNAME=sandbox).
     """
+    blocked = _guard("airtime_send", amount, confirm_send)
+    if blocked:
+        return blocked
     expected = _expected_currency(phone)
     if expected and currency_code.upper() != expected:
         return {

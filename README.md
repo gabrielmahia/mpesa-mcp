@@ -337,3 +337,12 @@ MIT licensed. Feedback via GitHub Issues only — pull requests are not accepted
 
 Model-agnostic by design: closed APIs, open-weight models, and small distilled models are all first-class citizens.
 <!-- /interconnect:v1 -->
+
+## Safety limits for tools that send money out (0.3.0, breaking in live mode)
+
+A language model can be talked into paying anyone any amount: prompt injection against payment tools is a documented attack on agent payment protocols (AP2, x402). So in **live** mode (`MPESA_SANDBOX=false`) the eight outflow tools (`mpesa_b2c`, `mpesa_business_paybill`, `mpesa_business_buygoods`, `mpesa_business_pochi`, `mpesa_reversal`, `mpesa_tax_remittance`, `mpesa_b2b_express_checkout`, `airtime_send`) are bounded:
+
+- **Confirmation:** they refuse unless called with `confirm_send=true`. The agent must show the user the recipient and amount and set it only after explicit approval.
+- **Cap:** amounts above `MPESA_MAX_AMOUNT_KES` (default **100,000**; `0` = no cap) are refused.
+- **Opt-out:** `MPESA_REQUIRE_CONFIRMATION=false` removes the confirmation requirement for fully automated setups you control. Do that only deliberately.
+- The **sandbox is never restricted**. Customer-approved flows (STK Push, Ratiba, Bill Manager) are unchanged: the customer approves on their handset.
