@@ -1,0 +1,36 @@
+{
+  "schema_version": "1.0",
+  "repository": "gabrielmahia/mpesa-mcp",
+  "project": "mpesa-mcp",
+  "stable_branch": "main",
+  "integration_branch": "main",
+  "purpose": "MCP server for M-Pesa Daraja API and Africa's Talking. 23 tools including get_model_hint(). Tested with claude-sonnet-5.",
+  "cold_start": [
+    "AGENTS.md",
+    "README.md"
+  ],
+  "commands": {
+    "install": "pip install -e . pytest ruff",
+    "test": "python -m pytest tests -q",
+    "lint": "ruff check . --ignore E501 --ignore F401"
+  },
+  "coordination": {
+    "task_registry": "GitHub Issues",
+    "work_claim": "Draft PR",
+    "branch_pattern": "agent/<agent-name>/<issue-number>-<slug>",
+    "pr_title_pattern": "[CLAIM #<issue>] <agent-name>: <scope>",
+    "authority": "Tests and external reality, not model consensus"
+  },
+  "current_workstreams": [],
+  "prohibited_autonomous_actions": [
+    "bypass confirm_send or the amount cap",
+    "change licensing",
+    "expose credentials",
+    "present simulated or demo data as real",
+    "weaken a safety guard or truth label"
+  ],
+  "reasoning_standard": {
+    "id": "coverage-adaptive-reasoning:v2",
+    "canonical": "https://github.com/gabrielmahia/nairobi-stack/blob/main/docs/COVERAGE_ADAPTIVE_REASONING.md"
+  }
+}
