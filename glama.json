@@ -1,7 +1,7 @@
 {
   "$schema": "https://glama.ai/mcp/schemas/1.0.0/server.json",
   "name": "mpesa-mcp",
-  "version": "0.2.8",
+  "version": "0.3.0",
   "description": "MCP server for M-Pesa Daraja API and Africa's Talking. 23 tools including get_model_hint(). Tested with claude-sonnet-5.",
   "license": "MIT",
   "homepage": "https://gabrielmahia.github.io",
