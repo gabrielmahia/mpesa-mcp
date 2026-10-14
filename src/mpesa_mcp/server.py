@@ -148,6 +148,41 @@ def _guard(tool: str, amount, confirm_send: bool):
 
 
 
+DEFAULT_SMS_RECIPIENT_CAP = 50
+
+
+def _max_sms_recipients() -> int:
+    """MPESA_MAX_SMS_RECIPIENTS: per-call recipient cap in live mode (default 50; 0 or 'none' = no cap, an explicit opt-out)."""
+    raw = os.environ.get("MPESA_MAX_SMS_RECIPIENTS", "").strip().lower()
+    if not raw:
+        return DEFAULT_SMS_RECIPIENT_CAP
+    if raw in ("0", "none", "unlimited"):
+        return 0
+    try:
+        return max(int(raw), 0)
+    except ValueError:
+        return DEFAULT_SMS_RECIPIENT_CAP
+
+
+def _guard_sms(recipients, confirm_send: bool):
+    """None if the SMS may be sent; otherwise the refusal to return to the model. The sandbox is never restricted.
+    A model can be talked into messaging anyone (spam, phishing), so in LIVE mode a send needs the user's approval and a recipient cap."""
+    if _is_sandbox():
+        return None
+    count = len(recipients) if isinstance(recipients, (list, tuple)) else 0
+    if count == 0:
+        _audit("sms_send", {"recipients": count}, "BLOCKED_NO_RECIPIENTS")
+        return {"success": False, "sandbox": False, "error": "recipients must be a non-empty list."}
+    if os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false" and confirm_send is not True:
+        _audit("sms_send", {"recipients": count}, "BLOCKED_NO_CONFIRMATION")
+        return {"success": False, "sandbox": False, "error": "Confirmation required: this tool sends SMS to real people. Show the user the message and the recipients, and call again with confirm_send=true only after they approve."}
+    cap = _max_sms_recipients()
+    if cap and count > cap:
+        _audit("sms_send", {"recipients": count}, "BLOCKED_OVER_CAP")
+        return {"success": False, "sandbox": False, "error": f"{count} recipients exceeds the per-call cap of {cap}. An operator can change it with MPESA_MAX_SMS_RECIPIENTS (0 = no cap)."}
+    return None
+
+
 def _mpesa_base() -> str:
     sandbox = os.environ.get("MPESA_SANDBOX", "true").lower() == "true"
     return "https://sandbox.safaricom.co.ke" if sandbox else "https://api.safaricom.co.ke"
@@ -184,7 +219,7 @@ def _at_init():
 
 # ── PAYMENTS ─────────────────────────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "M-Pesa STK Push", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send an M-PESA payment prompt (STK Push) to a customer's phone for them to approve with their PIN. Use when a customer is to pay your business shortcode. The customer must approve on the handset: nothing is taken without their PIN. Returns success, checkout_request_id, merchant_request_id, response code, message and the sandbox flag; success means the prompt was SENT, not that the customer paid, so poll mpesa_stk_query. In live mode it prompts a real phone.", annotations={"title": "M-Pesa STK Push", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_stk_push(
     phone: Annotated[str, "Customer phone (any Kenyan format: +254..., 07..., 254...)"],
     amount: Annotated[int, "Amount in KES (whole number, min 1, max 150000)"],
@@ -234,7 +269,7 @@ def mpesa_stk_push(
     }
 
 
-@mcp.tool(annotations={"title": "M-Pesa STK Query", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Check the status of an STK Push using its checkout_request_id. Use 10 to 30 seconds after mpesa_stk_push to learn whether the customer paid, cancelled or the request is still processing. Returns the Daraja status for that request with the sandbox flag. Read-only.", annotations={"title": "M-Pesa STK Query", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_stk_query(
     checkout_request_id: Annotated[str, "CheckoutRequestID from mpesa_stk_push response"],
 ) -> dict:
@@ -264,7 +299,7 @@ def mpesa_stk_query(
     return {"success": rc == 0, "result_code": rc, "status": status_map.get(rc, f"UNKNOWN({rc})"), "description": data.get("ResultDesc")}
 
 
-@mcp.tool(annotations={"title": "M-Pesa B2C", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa B2C", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_b2c(
     phone: Annotated[str, "Recipient phone number (any Kenyan format)"],
     amount: Annotated[int, "Amount in KES to send"],
@@ -314,7 +349,7 @@ def mpesa_b2c(
     }
 
 
-@mcp.tool(annotations={"title": "Business Pay Bill (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Pay Bill (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_business_paybill(
     receiver_paybill: Annotated[str, "Destination paybill shortcode"],
     amount: Annotated[int, "Amount in KES"],
@@ -356,7 +391,7 @@ def mpesa_business_paybill(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription")}
 
 
-@mcp.tool(annotations={"title": "Business Buy Goods (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Buy Goods (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_business_buygoods(
     till_number: Annotated[str, "Destination till number (Buy Goods)"],
     amount: Annotated[int, "Amount in KES"],
@@ -396,7 +431,7 @@ def mpesa_business_buygoods(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription")}
 
 
-@mcp.tool(annotations={"title": "Business to Pochi la Biashara", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business to Pochi la Biashara", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_business_pochi(
     phone: Annotated[str, "Pochi wallet owner phone number"],
     amount: Annotated[int, "Amount in KES"],
@@ -438,7 +473,7 @@ def mpesa_business_pochi(
 
 # ── QUERIES ───────────────────────────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "M-Pesa Transaction Status", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Query the status of any M-PESA transaction by its receipt number. Use when you need to confirm what happened to a payment, or to reconcile one against your records after an STK Push, B2C or reversal. Returns the Daraja response for that transaction, whose full details can arrive asynchronously on your result URL. Read-only; it changes nothing.", annotations={"title": "M-Pesa Transaction Status", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_transaction_status(
     transaction_id: Annotated[str, "M-Pesa receipt number e.g. QKL8XXXXXX"],
 ) -> dict:
@@ -470,7 +505,7 @@ def mpesa_transaction_status(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription"), "note": "Result async to MPESA_RESULT_URL"}
 
 
-@mcp.tool(annotations={"title": "M-Pesa Account Balance", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Query the balance of your business M-PESA account (shortcode or till). Use when someone asks how much is in the account. identifier_type 4 (default) means an organisation shortcode. Returns the Daraja response, with the balance delivered on your result URL. Read-only.", annotations={"title": "M-Pesa Account Balance", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_account_balance(
     identifier_type: Annotated[str, "1=MSISDN, 2=Till, 4=Shortcode/Paybill"] = "4",
     remarks: Annotated[str, "Query remarks"] = "Balance query via mpesa-mcp",
@@ -501,7 +536,7 @@ def mpesa_account_balance(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription"), "note": "Balance delivered async to MPESA_RESULT_URL"}
 
 
-@mcp.tool(annotations={"title": "Query Org Info", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Validate a shortcode and return its registered organisation name and tariff type. Use before paying a paybill or till to confirm who will actually receive the money, which helps catch a mistyped number or a lookalike business name. Returns the Daraja organisation details (registered name and tariff type). Read-only; it changes nothing.", annotations={"title": "Query Org Info", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_query_org_info(
     shortcode: Annotated[str, "Shortcode to validate (paybill or till number)"],
 ) -> dict:
@@ -528,7 +563,7 @@ def mpesa_query_org_info(
     }
 
 
-@mcp.tool(annotations={"title": "Pull C2B Transactions", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Pull C2B transactions in a date range for reconciliation. Use when reconciling payments received. start_date and end_date use YYYY-MM-DD HH:MM:SS; offset pages through results from 0. Returns count, the transactions, the response code and message. Read-only.", annotations={"title": "Pull C2B Transactions", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_pull_transactions(
     start_date: Annotated[str, "Start date YYYY-MM-DD HH:MM:SS"],
     end_date: Annotated[str, "End date YYYY-MM-DD HH:MM:SS"],
@@ -564,7 +599,7 @@ def mpesa_pull_transactions(
 
 # ── OPERATIONS ────────────────────────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "M-Pesa Reversal", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa Reversal", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_reversal(
     transaction_id: Annotated[str, "M-Pesa receipt to reverse e.g. QKL8XXXXXX"],
     amount: Annotated[int, "Amount to reverse in KES"],
@@ -605,7 +640,7 @@ def mpesa_reversal(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription"), "note": "Result async to MPESA_RESULT_URL"}
 
 
-@mcp.tool(annotations={"title": "Dynamic QR Code", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
+@mcp.tool(description="Generate a dynamic M-PESA QR code for a specific amount and reference. Use when a customer should pay by scanning. Returns qr_base64 (a PNG), qr_data_url usable in an HTML img tag, and the merchant, amount and reference. The QR encodes the amount you pass, so check it before showing it to a customer. Read-only; it changes nothing.", annotations={"title": "Dynamic QR Code", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 def mpesa_dynamic_qr(
     merchant_name: Annotated[str, "Business/merchant name to display on QR"],
     amount: Annotated[int, "Amount in KES to encode in QR"],
@@ -647,7 +682,7 @@ def mpesa_dynamic_qr(
     }
 
 
-@mcp.tool(annotations={"title": "Tax Remittance to KRA", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Tax Remittance to KRA", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_tax_remittance(
     amount: Annotated[int, "Tax amount in KES"],
     account_reference: Annotated[str, "KRA Payment Registration Number (PRN)"],
@@ -689,7 +724,7 @@ def mpesa_tax_remittance(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "kra_shortcode": KRA_SHORTCODE, "prn": account_reference, "description": data.get("ResponseDescription")}
 
 
-@mcp.tool(annotations={"title": "B2B Express Checkout", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "B2B Express Checkout", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_b2b_express_checkout(
     receiver_till: Annotated[str, "Recipient till number"],
     amount: Annotated[int, "Amount in KES"],
@@ -729,7 +764,7 @@ def mpesa_b2b_express_checkout(
 
 # ── STANDING ORDERS ───────────────────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "M-PESA Ratiba — Create Standing Order", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Create an M-PESA Ratiba standing order: automated recurring payments collected from a customer's phone. Use when a customer wants to pay a regular amount. The customer must approve on their handset; confirm the amount, dates and customer with the user first, since this creates a recurring commitment. frequency 1 one-off, 2 daily, 3 weekly, 4 monthly (default), 5 bi-monthly, 6 quarterly, 7 half-year, 8 annually. Returns success, standing_order_id, response code, message and frequency_label.", annotations={"title": "M-PESA Ratiba — Create Standing Order", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_ratiba_create(
     standing_order_name: Annotated[str, "Name for the standing order"],
     start_date: Annotated[str, "Start date YYYYMMDD"],
@@ -787,7 +822,7 @@ def mpesa_ratiba_create(
 
 # ── BILL MANAGER ─────────────────────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "Bill Manager — Opt In", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Enrol your business in M-PESA Bill Manager, a one-time setup for sending invoices with payment links. Use before creating invoices. Takes the notification email and an optional logo and callback URL. Returns the Daraja response. Changes your Bill Manager registration.", annotations={"title": "Bill Manager — Opt In", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_bill_manager_optin(
     email: Annotated[str, "Business email for Bill Manager notifications"],
     logo_url: Annotated[str, "HTTPS URL to your business logo (PNG/JPG)"] = "",
@@ -817,7 +852,7 @@ def mpesa_bill_manager_optin(
     return {"success": data.get("rescode") == "200", "message": data.get("resmsg"), "raw": data}
 
 
-@mcp.tool(annotations={"title": "Bill Manager — Create Invoice", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Create a Bill Manager invoice: the customer receives an SMS with the amount and a way to pay. Use when billing a customer. Sends an SMS to the customer's phone in live mode, so have the user approve the customer, amount and due date first. Returns the Daraja response for the invoice.", annotations={"title": "Bill Manager — Create Invoice", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def mpesa_bill_manager_invoice(
     external_ref: Annotated[str, "Your internal invoice/reference number"],
     billing_ref: Annotated[str, "Customer billing account reference"],
@@ -858,7 +893,7 @@ def mpesa_bill_manager_invoice(
     return {"success": data.get("rescode") == "200", "invoice_id": external_ref, "message": data.get("resmsg"), "customer_phone": phone}
 
 
-@mcp.tool(annotations={"title": "Bill Manager — Cancel Invoice", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Cancel an outstanding Bill Manager invoice by its external reference. Use when an invoice was raised in error or is no longer due. Returns the Daraja response. Cancels the invoice, so have the user approve it first; the customer will no longer be able to pay it, and a cancelled invoice cannot be restored through this tool.", annotations={"title": "Bill Manager — Cancel Invoice", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": True, "openWorldHint": True})
 def mpesa_bill_manager_cancel(
     external_reference: Annotated[str, "The externalReference used when creating the invoice"],
 ) -> dict:
@@ -882,7 +917,7 @@ def mpesa_bill_manager_cancel(
 
 # ── IDENTITY / FRAUD PREVENTION ───────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "SIM Swap Query", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Check whether a phone number's SIM was recently swapped, a fraud signal before sending money. Use before a disbursement to an unfamiliar or high-value recipient. This queries personal data about a subscriber: do so only with a lawful basis and any consent required under the Data Protection Act 2019. Returns phone, swap_detected, last_swap_date, a risk level (HIGH if swapped) and a recommendation. Read-only.", annotations={"title": "SIM Swap Query", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_sim_swap_query(
     phone: Annotated[str, "Phone number to check for SIM swap activity"],
 ) -> dict:
@@ -912,7 +947,7 @@ def mpesa_sim_swap_query(
     }
 
 
-@mcp.tool(annotations={"title": "IMSI Query — Phone Verification", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Verify a Safaricom number: registration date, SIM age, last swap date and a hashed IMSI, with risk indicators (recently swapped; SIM age below 30 as returned by the API). Use for identity or fraud checks before onboarding or paying. This queries personal data about a subscriber: do so only with a lawful basis and any consent required under the Data Protection Act 2019. Returns those fields and the risk indicators. Read-only.", annotations={"title": "IMSI Query — Phone Verification", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_imsi_query(
     phone: Annotated[str, "Phone number to verify"],
 ) -> dict:
@@ -947,17 +982,21 @@ def mpesa_imsi_query(
 
 # ── AFRICA'S TALKING ─────────────────────────────────────────────────────────
 
-@mcp.tool(annotations={"title": "Send SMS", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send an SMS to up to 1,000 recipients through Africa's Talking. Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode it needs confirm_send=true and refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.", annotations={"title": "Send SMS", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def sms_send(
     message: Annotated[str, "SMS message text. Unicode supported (Kiswahili etc.)"],
     recipients: Annotated[list[str], "Phone numbers in E.164 format e.g. ['+254712345678']"],
     sender_id: Annotated[str, "Optional pre-registered alphanumeric sender ID"] = "",
+    confirm_send: Annotated[bool, "Required in live mode: set true ONLY after the user has explicitly approved sending this exact message to these recipients."] = False,
 ) -> dict:
     """
     Send SMS to 1-1000 recipients via Africa's Talking.
     Works across Kenya, Nigeria, Ghana, Tanzania, Uganda, Rwanda and 15+ more.
     Returns per-recipient status and cost breakdown.
     """
+    blocked = _guard_sms(recipients, confirm_send)
+    if blocked:
+        return blocked
     _at_init()
     sms = africastalking.SMS
     kwargs: dict = {"message": message, "recipients": recipients}
@@ -994,7 +1033,7 @@ def _expected_currency(phone: str) -> str | None:
     return None
 
 
-@mcp.tool(annotations={"title": "Send Airtime", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode it needs confirm_send=true and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.", annotations={"title": "Send Airtime", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 def airtime_send(
     phone: Annotated[str, "Recipient phone in E.164 format e.g. '+254712345678'"],
     amount: Annotated[str, "Amount as string e.g. '50'. Denominated in currency_code, NOT always KES."],
@@ -1037,23 +1076,18 @@ def airtime_send(
 # ── Entry point ───────────────────────────────────────────────────────────────
 
 
-@mcp.tool(annotations={"title": "Model Hint", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
+@mcp.tool(description="Returns neutral guidance on choosing a model for these tools; no model is recommended and no benchmark or pricing claims are made. Use when someone asks which model to pair with this server. Takes no arguments. Returns a null recommendation, guidance, a deprecation note and the tool count (23). Read-only.", annotations={"title": "Model Hint", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
 def get_model_hint() -> dict:
     """
-    Returns the recommended AI model for using mpesa-mcp tools.
-    Call this first when selecting a model to pair with mpesa-mcp.
+    Returns neutral guidance on choosing a model for these tools (no model is recommended).
     """
     return {
-        "recommended_model": "claude-sonnet-5",
-        "api_id": "claude-sonnet-5",
-        "rationale": (
-            "Sonnet 5 finishes multi-step M-PESA workflows end-to-end and "
-            "self-corrects tool-call errors without prompting. "
-            "Terminal-Bench 80.4% vs Sonnet 4.6 67.0%. Tested 2026-06-30."
+        "recommended_model": None,
+        "guidance": (
+            "This server does not recommend a specific model and makes no benchmark or pricing claims. Use a model that follows tool schemas reliably, "
+            "keep a person approving every money-moving or messaging call (confirm_send), and rehearse in the sandbox first."
         ),
-        "cost_intro": "$2/$10 per MTok through 2026-08-31",
-        "cost_standard": "$3/$15 per MTok from 2026-09-01",
-        "fallback": "claude-opus-4-8 for highest-accuracy compliance reasoning",
+        "deprecated": "Kept for compatibility. Earlier versions returned an unsourced model recommendation with benchmark scores and prices whose dates had passed.",
         "tools_count": 23,
     }
 
