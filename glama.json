@@ -40,7 +40,7 @@
   "tools": [
     {
       "name": "mpesa_stk_push",
-      "description": "Trigger M-Pesa STK Push — sends payment prompt to customer's phone.\nCustomer enters M-PESA PIN to complete payment.\nReturns CheckoutRequestID; poll mpesa_stk_query after 10-30 seconds.",
+      "description": "Send an M-PESA payment prompt (STK Push) to a customer's phone for them to approve with their PIN. Use when a customer is to pay your business shortcode. The customer must approve on the handset: nothing is taken without their PIN. Returns success, checkout_request_id, merchant_request_id, response code, message and the sandbox flag; success means the prompt was SENT, not that the customer paid, so poll mpesa_stk_query. In live mode it prompts a real phone.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -49,7 +49,7 @@
     },
     {
       "name": "mpesa_stk_query",
-      "description": "Check STK Push status. Poll 10-30s after mpesa_stk_push.\nResultCode 0 = success, 1032 = cancelled, 1037 = timed out.\n\nIMPORTANT: Daraja's STK Push has a ~60s window and the callback is NOT\nguaranteed to fire if the user dismisses the prompt. Poll this tool 2-3\ntimes across that window before treating silence as failure — a single\nempty response does not mean the payment failed.",
+      "description": "Check the status of an STK Push using its checkout_request_id. Use 10 to 30 seconds after mpesa_stk_push to learn whether the customer paid, cancelled or the request is still processing. Returns the Daraja status for that request with the sandbox flag. Read-only.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -58,7 +58,7 @@
     },
     {
       "name": "mpesa_b2c",
-      "description": "Business To Customer disbursement — send money from shortcode to phone.\nUse for payroll, NGO field incentives, agent float, survey rewards.\nResult delivered async to MPESA_RESULT_URL.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL env vars.",
+      "description": "Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -67,7 +67,7 @@
     },
     {
       "name": "mpesa_business_paybill",
-      "description": "Pay directly from business shortcode to another paybill number.\nUse for supplier payments, utility bills, inter-business transfers.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
+      "description": "Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -76,7 +76,7 @@
     },
     {
       "name": "mpesa_business_buygoods",
-      "description": "Pay from business shortcode to a till/buy-goods number.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
+      "description": "Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -85,7 +85,7 @@
     },
     {
       "name": "mpesa_business_pochi",
-      "description": "Pay from business shortcode to a Pochi la Biashara micro-SME wallet.\nUsed for micro-enterprise supplier payments and informal sector settlements.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
+      "description": "Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -94,7 +94,7 @@
     },
     {
       "name": "mpesa_transaction_status",
-      "description": "Query status of any M-Pesa transaction by receipt number.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.\nResult delivered async to MPESA_RESULT_URL.",
+      "description": "Query the status of any M-PESA transaction by its receipt number. Use when you need to confirm what happened to a payment, or to reconcile one against your records after an STK Push, B2C or reversal. Returns the Daraja response for that transaction, whose full details can arrive asynchronously on your result URL. Read-only; it changes nothing.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -103,7 +103,7 @@
     },
     {
       "name": "mpesa_account_balance",
-      "description": "Query current balance of the business M-Pesa account (shortcode/till).\nResult delivered async to MPESA_RESULT_URL.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
+      "description": "Query the balance of your business M-PESA account (shortcode or till). Use when someone asks how much is in the account. identifier_type 4 (default) means an organisation shortcode. Returns the Daraja response, with the balance delivered on your result URL. Read-only.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -112,7 +112,7 @@
     },
     {
       "name": "mpesa_query_org_info",
-      "description": "Validate a shortcode — returns the registered name and tariff type.\nUse before sending B2B payments to confirm the destination shortcode is correct.\nPrevents accidental payments to wrong paybill numbers.",
+      "description": "Validate a shortcode and return its registered organisation name and tariff type. Use before paying a paybill or till to confirm who will actually receive the money, which helps catch a mistyped number or a lookalike business name. Returns the Daraja organisation details (registered name and tariff type). Read-only; it changes nothing.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -121,7 +121,7 @@
     },
     {
       "name": "mpesa_pull_transactions",
-      "description": "Pull all C2B transactions for reconciliation within a date range.\nReturns customer payments to your shortcode for audit and reconciliation.\nMax range: 48 hours per call. Max 10,000 records per call.",
+      "description": "Pull C2B transactions in a date range for reconciliation. Use when reconciling payments received. start_date and end_date use YYYY-MM-DD HH:MM:SS; offset pages through results from 0. Returns count, the transactions, the response code and message. Read-only.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -130,7 +130,7 @@
     },
     {
       "name": "mpesa_reversal",
-      "description": "Reverse an erroneous M-Pesa transaction.\nUse when a payment was sent to the wrong number or wrong amount.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.\nResult delivered async to MPESA_RESULT_URL.",
+      "description": "Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -139,7 +139,7 @@
     },
     {
       "name": "mpesa_dynamic_qr",
-      "description": "Generate a Dynamic M-PESA QR code for a specific payment amount.\nCustomer scans QR with their M-PESA app — amount pre-fills automatically.\nReturns base64-encoded QR image. Use for receipts, invoices, POS displays.",
+      "description": "Generate a dynamic M-PESA QR code for a specific amount and reference. Use when a customer should pay by scanning. Returns qr_base64 (a PNG), qr_data_url usable in an HTML img tag, and the merchant, amount and reference. The QR encodes the amount you pass, so check it before showing it to a customer. Read-only; it changes nothing.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -148,7 +148,7 @@
     },
     {
       "name": "mpesa_tax_remittance",
-      "description": "Remit tax directly from M-PESA business account to Kenya Revenue Authority.\nProvide the KRA Payment Registration Number (PRN) as account_reference.\nKRA shortcode: 572572. Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
+      "description": "Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -157,7 +157,7 @@
     },
     {
       "name": "mpesa_b2b_express_checkout",
-      "description": "Initiate USSD Push to till — enables merchant-to-merchant payments.\nRecipient merchant receives a USSD prompt to confirm payment from their till.\nUse for wholesale supplier payments between Lipa Na M-PESA merchants.\nRequires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.",
+      "description": "Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -166,7 +166,7 @@
     },
     {
       "name": "mpesa_ratiba_create",
-      "description": "Create an M-PESA Ratiba standing order — automated recurring payments.\nCustomer authorizes once; payments happen automatically on schedule.\nPerfect for subscription billing, rent collection, loan repayments, SACCO contributions.\nReturns a standing order ID to manage/cancel later.",
+      "description": "Create an M-PESA Ratiba standing order: automated recurring payments collected from a customer's phone. Use when a customer wants to pay a regular amount. The customer must approve on their handset; confirm the amount, dates and customer with the user first, since this creates a recurring commitment. frequency 1 one-off, 2 daily, 3 weekly, 4 monthly (default), 5 bi-monthly, 6 quarterly, 7 half-year, 8 annually. Returns success, standing_order_id, response code, message and frequency_label.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -175,7 +175,7 @@
     },
     {
       "name": "mpesa_bill_manager_optin",
-      "description": "Enrol your business in M-PESA Bill Manager.\nMust be called once before creating invoices.\nAfter opt-in, customers can pay your invoices directly via M-PESA.",
+      "description": "Enrol your business in M-PESA Bill Manager, a one-time setup for sending invoices with payment links. Use before creating invoices. Takes the notification email and an optional logo and callback URL. Returns the Daraja response. Changes your Bill Manager registration.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": false,
@@ -184,7 +184,7 @@
     },
     {
       "name": "mpesa_bill_manager_invoice",
-      "description": "Create a Bill Manager invoice — customer receives SMS with payment link.\nThey can pay directly via M-PESA by clicking the link or using the paybill.\nReturns invoice ID. Use mpesa_bill_manager_cancel to void outstanding invoices.",
+      "description": "Create a Bill Manager invoice: the customer receives an SMS with the amount and a way to pay. Use when billing a customer. Sends an SMS to the customer's phone in live mode, so have the user approve the customer, amount and due date first. Returns the Daraja response for the invoice.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -193,7 +193,7 @@
     },
     {
       "name": "mpesa_bill_manager_cancel",
-      "description": "Cancel an outstanding Bill Manager invoice.\nCustomer will no longer be able to pay the cancelled invoice.\nUse when an order is cancelled or a duplicate invoice was created.",
+      "description": "Cancel an outstanding Bill Manager invoice by its external reference. Use when an invoice was raised in error or is no longer due. Returns the Daraja response. Cancels the invoice, so have the user approve it first; the customer will no longer be able to pay it, and a cancelled invoice cannot be restored through this tool.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -202,7 +202,7 @@
     },
     {
       "name": "mpesa_sim_swap_query",
-      "description": "Check if a phone number's SIM card was recently swapped.\nCritical fraud prevention signal — SIM swaps often precede account takeovers.\nUse before high-value B2C disbursements to verify recipient identity is stable.\nReturns swap status and last swap date.",
+      "description": "Check whether a phone number's SIM was recently swapped, a fraud signal before sending money. Use before a disbursement to an unfamiliar or high-value recipient. This queries personal data about a subscriber: do so only with a lawful basis and any consent required under the Data Protection Act 2019. Returns phone, swap_detected, last_swap_date, a risk level (HIGH if swapped) and a recommendation. Read-only.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -211,7 +211,7 @@
     },
     {
       "name": "mpesa_imsi_query",
-      "description": "Verify a Safaricom number — returns registration date, SIM age, last swap, and hashed IMSI.\nEnhanced KYC/AML signal for financial services compliance.\nOlder SIMs with no recent swaps have lower fraud risk.\nReturns data suitable for risk scoring without exposing raw IMSI.",
+      "description": "Verify a Safaricom number: registration date, SIM age, last swap date and a hashed IMSI, with risk indicators (recently swapped; SIM age below 30 as returned by the API). Use for identity or fraud checks before onboarding or paying. This queries personal data about a subscriber: do so only with a lawful basis and any consent required under the Data Protection Act 2019. Returns those fields and the risk indicators. Read-only.",
       "annotations": {
         "readOnlyHint": true,
         "destructiveHint": false,
@@ -220,7 +220,7 @@
     },
     {
       "name": "sms_send",
-      "description": "Send SMS to 1-1000 recipients via Africa's Talking.\nWorks across Kenya, Nigeria, Ghana, Tanzania, Uganda, Rwanda and 15+ more.\nReturns per-recipient status and cost breakdown.",
+      "description": "Send an SMS to up to 1,000 recipients through Africa's Talking. Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode it needs confirm_send=true and refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -229,7 +229,7 @@
     },
     {
       "name": "airtime_send",
-      "description": "Send airtime top-up to MTN/Safaricom/Airtel/Vodafone subscribers.\nUse for NGO field incentives, survey rewards, agent payouts.\n\nCurrency is validated against the recipient's country code. Sending a KES\namount to a Tanzanian number is rejected with the correct currency named,\nrather than topping up the wrong denomination silently.\n\nNo real airtime sent in sandbox mode (AT_USERNAME=sandbox).",
+      "description": "Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode it needs confirm_send=true and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -238,7 +238,7 @@
     },
     {
       "name": "get_model_hint",
-      "description": "Returns the recommended AI model for using mpesa-mcp tools.\nCall this first when selecting a model to pair with mpesa-mcp."
+      "description": "Returns neutral guidance on choosing a model for these tools; no model is recommended and no benchmark or pricing claims are made. Use when someone asks which model to pair with this server. Takes no arguments. Returns a null recommendation, guidance, a deprecation note and the tool count (23). Read-only."
     }
   ],
   "repository": {
