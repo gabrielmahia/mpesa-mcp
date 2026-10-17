@@ -265,9 +265,9 @@ Report vulnerabilities to: contact@aikungfu.dev
 **MCP security research** (arXiv:2603.18063, arXiv:2603.21642, 2026): Prompt injection via tool descriptions is the primary MCP attack vector. mpesa-mcp mitigates this through static, versioned tool descriptions and strict input validation.
 
 **Related infrastructure:**
-- [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) — Kenya water/drought MCP
+- [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) — Kenya drought-response MCP (simulated data)
 - [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) — Kenya civic data MCP
-- [swahili-health-mcp](https://github.com/gabrielmahia/swahili-health-mcp) — Kenya DHIS2 health data MCP
+- [swahili-health-mcp](https://github.com/gabrielmahia/swahili-health-mcp) — Kenya DHS 2022 county health indicators MCP
 - [kenya-legal-rag](https://github.com/gabrielmahia/kenya-legal-rag) — Kenya legal corpus MCP
 - Full portfolio: [gabrielmahia.github.io](https://gabrielmahia.github.io)
 
@@ -286,7 +286,7 @@ Or watch this repo on GitHub for release notifications.
 
 | Package | Install | Description |
 |---------|---------|-------------|
-| [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Kenya drought intelligence MCP server |
+| [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Simulated drought phases and SMS alerts MCP server (no real NDMA data yet) |
 | [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
 ## Related packages
 
@@ -294,7 +294,7 @@ All MIT · All part of the East African civic AI stack
 
 | Package | Install | Description |
 |---------|---------|-------------|
-| [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Kenya drought intelligence MCP server |
+| [wapimaji-mcp](https://github.com/gabrielmahia/wapimaji-mcp) | `pip install wapimaji-mcp` | Simulated drought phases and SMS alerts MCP server (no real NDMA data yet) |
 | [kenya-health-mcp](https://github.com/gabrielmahia/kenya-health-mcp) | `pip install kenya-health-mcp` | Kenya health data MCP — SHA/SHIF, facilities, maternal, rights |
 | [civic-agent-kit](https://github.com/gabrielmahia/civic-agent-kit) | `pip install civic-agent-kit` | East African civic AI SDK |
 
@@ -317,7 +317,7 @@ Live demo: [coord-cascade-demo](https://github.com/gabrielmahia/coord-cascade-de
 
 MIT licensed. Feedback via GitHub Issues only — pull requests are not accepted. Demo data is labeled DEMO and is not suitable for operational decisions. Full policy: [docs/architecture/IP_POLICY.md](docs/architecture/IP_POLICY.md). Security reports: see [SECURITY.md](SECURITY.md).
 
-<!-- interconnect:v1 -->
+<!-- interconnect:v2 -->
 ## Part of the East Africa coordination stack
 
 - **Install & run:** `pip install reli-cli && reli list` — the MCP servers on the [official MCP Registry](https://registry.modelcontextprotocol.io) under `io.github.gabrielmahia`
@@ -326,7 +326,7 @@ MIT licensed. Feedback via GitHub Issues only — pull requests are not accepted
 - **Datasets:** [huggingface.co/gmahia](https://huggingface.co/gmahia) · **Docs hub:** [nairobi-stack](https://github.com/gabrielmahia/nairobi-stack)
 
 Model-agnostic by design: closed APIs, open-weight models, and small distilled models are all first-class citizens.
-<!-- /interconnect:v1 -->
+<!-- /interconnect:v2 -->
 
 ## Safety limits for tools that send money out (0.3.0, breaking in live mode)
 
