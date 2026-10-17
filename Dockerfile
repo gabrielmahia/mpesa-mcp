@@ -1,42 +1,16 @@
-# mpesa-mcp — Dockerfile for Glama sandbox build and evaluation
-# Glama uses this to run security checks and assign quality/security scores.
-#
-# Local usage:
-#   docker build -t mpesa-mcp .
-#   docker run -e MPESA_SANDBOX=true -e MPESA_CONSUMER_KEY=... mpesa-mcp
-
-FROM python:3.11-slim
-
+FROM python:3.12-slim
 LABEL org.opencontainers.image.title="mpesa-mcp"
-LABEL org.opencontainers.image.description="MCP server for M-Pesa and Africa's Talking APIs"
+LABEL org.opencontainers.image.description="MCP server for the M-Pesa Daraja API and Africa's Talking: sandbox by default; live money and SMS need confirmation"
 LABEL org.opencontainers.image.source="https://github.com/gabrielmahia/mpesa-mcp"
 LABEL org.opencontainers.image.licenses="MIT"
 LABEL org.opencontainers.image.authors="Gabriel Mahia <contact@aikungfu.dev>"
-LABEL org.opencontainers.image.version="0.1.8"
-
-# Non-root for security
 RUN groupadd -r mcpuser && useradd -r -g mcpuser mcpuser
-
 WORKDIR /app
-
-# Install the package from PyPI (avoids src/ copy issues)
+# Latest published release, unpinned: this was pinned to 0.1.8, so Glama inspected an old release that exposed only 5 of the 23 tools.
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir mpesa-mcp==0.1.8
-
+    pip install --no-cache-dir mpesa-mcp
 USER mcpuser
-
-# Env vars — all match server.py exactly
-# Sandbox-safe defaults — no real money moves unless MPESA_SANDBOX=false
+# Sandbox by default; no credentials are baked in.
 ENV MPESA_SANDBOX=true
-ENV MPESA_CONSUMER_KEY=""
-ENV MPESA_CONSUMER_SECRET=""
-ENV MPESA_SHORTCODE=""
-ENV MPESA_PASSKEY=""
-ENV MPESA_CALLBACK_URL=""
 ENV AT_USERNAME="sandbox"
-ENV AT_API_KEY=""
-ENV MPESA_INITIATOR_NAME=""
-ENV MPESA_SECURITY_CREDENTIAL=""
-
-# MCP servers use stdio transport
 ENTRYPOINT ["mpesa-mcp"]
