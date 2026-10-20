@@ -1,10 +1,10 @@
 [build-system]
-requires = ["setuptools>=68", "wheel"]
+requires = ["setuptools>=77", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpesa-mcp"
-version = "0.4.2"
+version = "0.4.3"
 description = "MCP server for the M-Pesa Daraja API and Africa's Talking: 23 tools, sandbox by default; in live mode money-moving and SMS tools need explicit confirmation and are capped."
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -14,6 +14,9 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Programming Language :: Python :: 3.15",
 ]
 readme = "README.md"
 license = "MIT"
