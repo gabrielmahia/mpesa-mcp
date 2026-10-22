@@ -42,7 +42,9 @@ Tools — Africa's Talking:
 
 import base64
 import datetime
+import functools
 import hashlib
+import inspect
 import logging
 import os
 import re
@@ -63,6 +65,51 @@ def _audit(tool, params, outcome):
         for k, v in params.items()
     }
     _log.info("TOOL=%s PARAMS=%s OUTCOME=%s", tool, safe, outcome)
+
+
+class ConfigError(RuntimeError):
+    """A required environment variable is missing. The message names it and says where to set it."""
+
+
+def _env(name: str) -> str:
+    """os.environ[name] with a message a person can act on (it used to surface as a bare KeyError: 'MPESA_SHORTCODE')."""
+    try:
+        return os.environ[name]
+    except KeyError:
+        raise ConfigError(f"{name} is not set. Set it in the server's environment (see the README, Configuration).") from None
+
+
+_AUDIT_KEYS = ("amount", "phone", "receiver_paybill", "till_number", "receiver_till", "transaction_id", "external_reference", "frequency")
+
+
+def _terminal_audit(tool: str):
+    """Record how a call that logged INITIATED actually ended: ACCEPTED or REJECTED:<code> from Daraja's reply, RETURNED when the reply has no
+    accepted flag, or FAILED:<ExceptionType> when the call raised (then the exception is re-raised unchanged). A dict that carries an "error" key
+    is a refusal that was already audited as BLOCKED_* (or a validation error before INITIATED), so it gets no second line."""
+    def deco(fn):
+        sig = inspect.signature(fn)
+
+        @functools.wraps(fn)
+        def wrapper(*args, **kwargs):
+            try:
+                bound = sig.bind_partial(*args, **kwargs).arguments
+            except TypeError:
+                bound = {}
+            params = {k: bound[k] for k in _AUDIT_KEYS if k in bound}
+            try:
+                result = fn(*args, **kwargs)
+            except Exception as exc:
+                _audit(tool, params, f"FAILED:{type(exc).__name__}")
+                raise
+            if isinstance(result, dict) and "error" not in result:
+                if "accepted" in result:
+                    _audit(tool, params, "ACCEPTED" if result["accepted"] else f"REJECTED:{result.get('response_code')}")
+                else:
+                    _audit(tool, params, "RETURNED")
+            return result
+
+        return wrapper
+    return deco
 
 
 # Annotations tell clients which tools are safe to auto-approve (read-only, no side effects).
@@ -88,8 +135,8 @@ def _get_mpesa_token() -> str:
         return _token_cache["token"]  # type: ignore[return-value]
     sandbox = os.environ.get("MPESA_SANDBOX", "true").lower() == "true"
     base = "https://sandbox.safaricom.co.ke" if sandbox else "https://api.safaricom.co.ke"
-    key = os.environ["MPESA_CONSUMER_KEY"]
-    secret = os.environ["MPESA_CONSUMER_SECRET"]
+    key = _env("MPESA_CONSUMER_KEY")
+    secret = _env("MPESA_CONSUMER_SECRET")
     creds = base64.b64encode(f"{key}:{secret}".encode()).decode()
     resp = requests.get(
         f"{base}/oauth/v1/generate?grant_type=client_credentials",
@@ -202,7 +249,7 @@ def _stk_password(shortcode: str, passkey: str, ts: str) -> str:
 
 
 def _callback() -> str:
-    return os.environ["MPESA_CALLBACK_URL"]
+    return _env("MPESA_CALLBACK_URL")
 
 
 def _result_url() -> str:
@@ -214,12 +261,13 @@ def _timeout_url() -> str:
 
 
 def _at_init():
-    africastalking.initialize(username=os.environ["AT_USERNAME"], api_key=os.environ["AT_API_KEY"])
+    africastalking.initialize(username=_env("AT_USERNAME"), api_key=_env("AT_API_KEY"))
 
 
 # ── PAYMENTS ─────────────────────────────────────────────────────────────────
 
 @mcp.tool(description="Send an M-PESA payment prompt (STK Push) to a customer's phone for them to approve with their PIN. Use when a customer is to pay your business shortcode. The customer must approve on the handset: nothing is taken without their PIN. Returns success, checkout_request_id, merchant_request_id, response code, message and the sandbox flag; success means the prompt was SENT, not that the customer paid, so poll mpesa_stk_query. In live mode it prompts a real phone.", annotations={"title": "M-Pesa STK Push", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_stk_push")
 def mpesa_stk_push(
     phone: Annotated[str, "Customer phone (any Kenyan format: +254..., 07..., 254...)"],
     amount: Annotated[int, "Amount in KES (whole number, min 1, max 150000)"],
@@ -233,8 +281,8 @@ def mpesa_stk_push(
     """
     if not 1 <= amount <= 150_000:
         return {"error": f"Amount {amount} out of bounds [1, 150000]"}
-    shortcode = os.environ["MPESA_SHORTCODE"]
-    passkey = os.environ["MPESA_PASSKEY"]
+    shortcode = _env("MPESA_SHORTCODE")
+    passkey = _env("MPESA_PASSKEY")
     ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     phone = _normalize_phone(phone)
     _audit("mpesa_stk_push", {"phone": phone, "amount": amount}, "INITIATED")
@@ -282,8 +330,8 @@ def mpesa_stk_query(
     times across that window before treating silence as failure — a single
     empty response does not mean the payment failed.
     """
-    shortcode = os.environ["MPESA_SHORTCODE"]
-    passkey = os.environ["MPESA_PASSKEY"]
+    shortcode = _env("MPESA_SHORTCODE")
+    passkey = _env("MPESA_PASSKEY")
     ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     token = _get_mpesa_token()
     resp = requests.post(
@@ -300,6 +348,7 @@ def mpesa_stk_query(
 
 
 @mcp.tool(description="Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa B2C", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_b2c")
 def mpesa_b2c(
     phone: Annotated[str, "Recipient phone number (any Kenyan format)"],
     amount: Annotated[int, "Amount in KES to send"],
@@ -323,11 +372,11 @@ def mpesa_b2c(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/b2c/v3/paymentrequest",
         json={
-            "InitiatorName": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "InitiatorName": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": command_id,
             "Amount": amount,
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "PartyB": phone,
             "Remarks": remarks[:100],
             "QueueTimeOutURL": _timeout_url(),
@@ -350,6 +399,7 @@ def mpesa_b2c(
 
 
 @mcp.tool(description="Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Pay Bill (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_business_paybill")
 def mpesa_business_paybill(
     receiver_paybill: Annotated[str, "Destination paybill shortcode"],
     amount: Annotated[int, "Amount in KES"],
@@ -370,13 +420,13 @@ def mpesa_business_paybill(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/b2b/v1/paymentrequest",
         json={
-            "Initiator": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "Initiator": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "BusinessPayBill",
             "SenderIdentifierType": "4",
             "RecieverIdentifierType": "4",
             "Amount": amount,
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "PartyB": receiver_paybill,
             "AccountReference": account_reference,
             "Remarks": remarks,
@@ -392,6 +442,7 @@ def mpesa_business_paybill(
 
 
 @mcp.tool(description="Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Buy Goods (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_business_buygoods")
 def mpesa_business_buygoods(
     till_number: Annotated[str, "Destination till number (Buy Goods)"],
     amount: Annotated[int, "Amount in KES"],
@@ -410,13 +461,13 @@ def mpesa_business_buygoods(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/b2b/v1/paymentrequest",
         json={
-            "Initiator": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "Initiator": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "BusinessBuyGoods",
             "SenderIdentifierType": "4",
             "RecieverIdentifierType": "2",
             "Amount": amount,
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "PartyB": till_number,
             "AccountReference": till_number,
             "Remarks": remarks,
@@ -432,6 +483,7 @@ def mpesa_business_buygoods(
 
 
 @mcp.tool(description="Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business to Pochi la Biashara", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_business_pochi")
 def mpesa_business_pochi(
     phone: Annotated[str, "Pochi wallet owner phone number"],
     amount: Annotated[int, "Amount in KES"],
@@ -452,11 +504,11 @@ def mpesa_business_pochi(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/b2c/v3/paymentrequest",
         json={
-            "InitiatorName": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "InitiatorName": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "BusinessPayToBulk",
             "Amount": amount,
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "PartyB": phone,
             "Remarks": remarks,
             "QueueTimeOutURL": _timeout_url(),
@@ -486,11 +538,11 @@ def mpesa_transaction_status(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/transactionstatus/v1/query",
         json={
-            "Initiator": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "Initiator": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "TransactionStatusQuery",
             "TransactionID": transaction_id,
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "IdentifierType": "4",
             "ResultURL": _result_url(),
             "QueueTimeOutURL": _timeout_url(),
@@ -519,10 +571,10 @@ def mpesa_account_balance(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/accountbalance/v1/query",
         json={
-            "Initiator": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "Initiator": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "AccountBalance",
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "IdentifierType": identifier_type,
             "Remarks": remarks,
             "QueueTimeOutURL": _timeout_url(),
@@ -578,7 +630,7 @@ def mpesa_pull_transactions(
     resp = requests.post(
         f"{_mpesa_base()}/pulltransactions/v1/query",
         json={
-            "ShortCode": os.environ["MPESA_SHORTCODE"],
+            "ShortCode": _env("MPESA_SHORTCODE"),
             "StartDate": start_date,
             "EndDate": end_date,
             "OffSetValue": str(offset),
@@ -600,6 +652,7 @@ def mpesa_pull_transactions(
 # ── OPERATIONS ────────────────────────────────────────────────────────────────
 
 @mcp.tool(description="Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa Reversal", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_reversal")
 def mpesa_reversal(
     transaction_id: Annotated[str, "M-Pesa receipt to reverse e.g. QKL8XXXXXX"],
     amount: Annotated[int, "Amount to reverse in KES"],
@@ -620,12 +673,12 @@ def mpesa_reversal(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/reversal/v1/request",
         json={
-            "Initiator": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "Initiator": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "TransactionReversal",
             "TransactionID": transaction_id,
             "Amount": amount,
-            "ReceiverParty": os.environ["MPESA_SHORTCODE"],
+            "ReceiverParty": _env("MPESA_SHORTCODE"),
             "RecieverIdentifierType": "4",
             "ResultURL": _result_url(),
             "QueueTimeOutURL": _timeout_url(),
@@ -654,7 +707,7 @@ def mpesa_dynamic_qr(
     Returns base64-encoded QR image. Use for receipts, invoices, POS displays.
     """
     token = _get_mpesa_token()
-    cpi = os.environ["MPESA_SHORTCODE"]
+    cpi = _env("MPESA_SHORTCODE")
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/qrcode/v1/generate",
         json={
@@ -683,6 +736,7 @@ def mpesa_dynamic_qr(
 
 
 @mcp.tool(description="Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Tax Remittance to KRA", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_tax_remittance")
 def mpesa_tax_remittance(
     amount: Annotated[int, "Tax amount in KES"],
     account_reference: Annotated[str, "KRA Payment Registration Number (PRN)"],
@@ -703,13 +757,13 @@ def mpesa_tax_remittance(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/b2b/v1/remittax",
         json={
-            "Initiator": os.environ["MPESA_INITIATOR_NAME"],
-            "SecurityCredential": os.environ["MPESA_SECURITY_CREDENTIAL"],
+            "Initiator": _env("MPESA_INITIATOR_NAME"),
+            "SecurityCredential": _env("MPESA_SECURITY_CREDENTIAL"),
             "CommandID": "PayTaxToKRA",
             "SenderIdentifierType": "4",
             "RecieverIdentifierType": "4",
             "Amount": amount,
-            "PartyA": os.environ["MPESA_SHORTCODE"],
+            "PartyA": _env("MPESA_SHORTCODE"),
             "PartyB": KRA_SHORTCODE,
             "AccountReference": account_reference,
             "Remarks": remarks,
@@ -725,6 +779,7 @@ def mpesa_tax_remittance(
 
 
 @mcp.tool(description="Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "B2B Express Checkout", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_b2b_express")
 def mpesa_b2b_express_checkout(
     receiver_till: Annotated[str, "Recipient till number"],
     amount: Annotated[int, "Amount in KES"],
@@ -746,7 +801,7 @@ def mpesa_b2b_express_checkout(
     resp = requests.post(
         f"{_mpesa_base()}/mpesa/b2b/v1/paymentrequest",
         json={
-            "primaryShortCode": os.environ["MPESA_SHORTCODE"],
+            "primaryShortCode": _env("MPESA_SHORTCODE"),
             "receiverShortCode": receiver_till,
             "amount": str(amount),
             "paymentRef": account_reference,
@@ -765,6 +820,7 @@ def mpesa_b2b_express_checkout(
 # ── STANDING ORDERS ───────────────────────────────────────────────────────────
 
 @mcp.tool(description="Create an M-PESA Ratiba standing order: automated recurring payments collected from a customer's phone. Use when a customer wants to pay a regular amount. The customer must approve on their handset; confirm the amount, dates and customer with the user first, since this creates a recurring commitment. frequency 1 one-off, 2 daily, 3 weekly, 4 monthly (default), 5 bi-monthly, 6 quarterly, 7 half-year, 8 annually. Returns success, standing_order_id, response code, message and frequency_label.", annotations={"title": "M-PESA Ratiba — Create Standing Order", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_ratiba_create")
 def mpesa_ratiba_create(
     standing_order_name: Annotated[str, "Name for the standing order"],
     start_date: Annotated[str, "Start date YYYYMMDD"],
@@ -783,8 +839,8 @@ def mpesa_ratiba_create(
     """
     phone = _normalize_phone(phone)
     _audit("mpesa_ratiba_create", {"phone": phone, "amount": amount, "frequency": frequency}, "INITIATED")
-    shortcode = os.environ["MPESA_SHORTCODE"]
-    passkey = os.environ["MPESA_PASSKEY"]
+    shortcode = _env("MPESA_SHORTCODE")
+    passkey = _env("MPESA_PASSKEY")
     ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
     token = _get_mpesa_token()
     resp = requests.post(
@@ -837,7 +893,7 @@ def mpesa_bill_manager_optin(
     resp = requests.post(
         f"{_mpesa_base()}/v1/billmanager-invoice/optin",
         json={
-            "shortcode": os.environ["MPESA_SHORTCODE"],
+            "shortcode": _env("MPESA_SHORTCODE"),
             "email": email,
             "officialContact": os.environ.get("MPESA_OFFICIAL_CONTACT", ""),
             "sendReminders": "1",
@@ -853,6 +909,7 @@ def mpesa_bill_manager_optin(
 
 
 @mcp.tool(description="Create a Bill Manager invoice: the customer receives an SMS with the amount and a way to pay. Use when billing a customer. Sends an SMS to the customer's phone in live mode, so have the user approve the customer, amount and due date first. Returns the Daraja response for the invoice.", annotations={"title": "Bill Manager — Create Invoice", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_bill_manager_invoice")
 def mpesa_bill_manager_invoice(
     external_ref: Annotated[str, "Your internal invoice/reference number"],
     billing_ref: Annotated[str, "Customer billing account reference"],
@@ -894,6 +951,7 @@ def mpesa_bill_manager_invoice(
 
 
 @mcp.tool(description="Cancel an outstanding Bill Manager invoice by its external reference. Use when an invoice was raised in error or is no longer due. Returns the Daraja response. Cancels the invoice, so have the user approve it first; the customer will no longer be able to pay it, and a cancelled invoice cannot be restored through this tool.", annotations={"title": "Bill Manager — Cancel Invoice", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": True, "openWorldHint": True})
+@_terminal_audit("mpesa_bill_manager_cancel")
 def mpesa_bill_manager_cancel(
     external_reference: Annotated[str, "The externalReference used when creating the invoice"],
 ) -> dict:

@@ -1,5 +1,10 @@
 # Changelog — mpesa-mcp
 
+## Unreleased
+- **Fixed (audit):** a money tool that logged `INITIATED` now also logs how the call ended: `ACCEPTED`, `REJECTED:<code>` (Daraja's reply), `RETURNED`, or `FAILED:<ExceptionType>` (the exception still propagates). Before, the log could not tell an accepted payment from a failed one. Refusals by the guard are still audited once as `BLOCKED_*`.
+- **Fixed:** a missing credential now says which one (`MPESA_SHORTCODE is not set. Set it in the server's environment (see the README, Configuration).`) instead of a bare `KeyError: 'MPESA_SHORTCODE'`. 22 of the 23 tools used to fail that way without credentials.
+- Tests: 9 new (accepted, rejected, HTTP failure, missing credential, the message through the MCP client, a blocked live-mode call that never reaches the network, unchanged tool schema, every INITIATED tool decorated, no literal-keyed environment reads).
+
 ## 0.4.1
 - Descriptions on PyPI, the registry and the MCP server card no longer claim the server was "tested with" a model; the README's Models section states that no model is recommended or certified.
 
