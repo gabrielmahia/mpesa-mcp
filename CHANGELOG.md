@@ -1,9 +1,12 @@
 # Changelog — mpesa-mcp
 
-## Unreleased
-- **Fixed (audit):** a money tool that logged `INITIATED` now also logs how the call ended: `ACCEPTED`, `REJECTED:<code>` (Daraja's reply), `RETURNED`, or `FAILED:<ExceptionType>` (the exception still propagates). Before, the log could not tell an accepted payment from a failed one. Refusals by the guard are still audited once as `BLOCKED_*`.
-- **Fixed:** a missing credential now says which one (`MPESA_SHORTCODE is not set. Set it in the server's environment (see the README, Configuration).`) instead of a bare `KeyError: 'MPESA_SHORTCODE'`. 22 of the 23 tools used to fail that way without credentials.
-- Tests: 9 new (accepted, rejected, HTTP failure, missing credential, the message through the MCP client, a blocked live-mode call that never reaches the network, unchanged tool schema, every INITIATED tool decorated, no literal-keyed environment reads).
+## 0.4.4
+- **Fixed (audit):** every tool that logs `INITIATED` now also logs how the call ended, so the trail can be reconciled: `ACCEPTED`, `REJECTED:<code or status>`, `SENT:<n>/FAILED:<m>` (SMS), `RETURNED`, or `FAILED:<ExceptionType>` (the exception still propagates; only its type is logged, never its message). Refusals by the guard are still audited once as `BLOCKED_*`. A terminal line is written only if `INITIATED` was logged during that call.
+- **Fixed (audit gap):** `sms_send` and `airtime_send` logged nothing when they succeeded; they now log `INITIATED` and a terminal line. SMS logs the number of recipients, never the numbers.
+- **Fixed:** a missing credential now says which one (`MPESA_SHORTCODE is not set. Set it in the server's environment (see the README, Configuration).`) instead of a bare `KeyError: 'MPESA_SHORTCODE'`; 22 of the 23 tools used to fail that way without credentials.
+- **Fixed:** the server reports its own version in the MCP handshake (it reported the FastMCP library version, 4.1.3).
+- **Publishing:** the PyPI action is pinned to a commit, `mcp-publisher` is pinned to v1.8.1 with its SHA-256 verified, and the registry step is skipped when the version is already published, so a retry is harmless.
+- Tests: 17 new (terminal outcomes, no numbers in the log, a blocked live-mode call never reaches the network, unchanged tool schema, every audited tool decorated, version agreement across pyproject, server.json, glama.json and the running server).
 
 ## 0.4.1
 - Descriptions on PyPI, the registry and the MCP server card no longer claim the server was "tested with" a model; the README's Models section states that no model is recommended or certified.

@@ -41,6 +41,7 @@ Tools — Africa's Talking:
 """
 
 import base64
+import contextvars
 import datetime
 import functools
 import hashlib
@@ -56,6 +57,8 @@ import requests
 from fastmcp import FastMCP
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s mpesa-mcp %(message)s")
+from . import __version__  # noqa: E402
+
 _log = logging.getLogger("mpesa_mcp")
 
 
@@ -65,6 +68,8 @@ def _audit(tool, params, outcome):
         for k, v in params.items()
     }
     _log.info("TOOL=%s PARAMS=%s OUTCOME=%s", tool, safe, outcome)
+    if outcome == "INITIATED":
+        _initiated.set(True)
 
 
 class ConfigError(RuntimeError):
@@ -80,12 +85,15 @@ def _env(name: str) -> str:
 
 
 _AUDIT_KEYS = ("amount", "phone", "receiver_paybill", "till_number", "receiver_till", "transaction_id", "external_reference", "frequency")
+_initiated: contextvars.ContextVar[bool] = contextvars.ContextVar("mpesa_mcp_initiated", default=False)
 
 
 def _terminal_audit(tool: str):
-    """Record how a call that logged INITIATED actually ended: ACCEPTED or REJECTED:<code> from Daraja's reply, RETURNED when the reply has no
-    accepted flag, or FAILED:<ExceptionType> when the call raised (then the exception is re-raised unchanged). A dict that carries an "error" key
-    is a refusal that was already audited as BLOCKED_* (or a validation error before INITIATED), so it gets no second line."""
+    """Record how a call that logged INITIATED actually ended, so the trail can be reconciled:
+    ACCEPTED, REJECTED:<code or status>, SENT:<n>/FAILED:<m> (SMS), RETURNED (no accepted flag), or FAILED:<ExceptionType> when the call raised
+    (the exception is re-raised unchanged; only its type is logged, never its message). A terminal line is written only if INITIATED was logged
+    during this very call, so a guard refusal (already audited as BLOCKED_*) or a validation error before INITIATED gets no second line.
+    Recipient lists are logged as a count, never as numbers."""
     def deco(fn):
         sig = inspect.signature(fn)
 
@@ -96,17 +104,29 @@ def _terminal_audit(tool: str):
             except TypeError:
                 bound = {}
             params = {k: bound[k] for k in _AUDIT_KEYS if k in bound}
+            if isinstance(bound.get("recipients"), (list, tuple)):
+                params["recipients"] = len(bound["recipients"])
+            token = _initiated.set(False)
             try:
-                result = fn(*args, **kwargs)
-            except Exception as exc:
-                _audit(tool, params, f"FAILED:{type(exc).__name__}")
-                raise
-            if isinstance(result, dict) and "error" not in result:
-                if "accepted" in result:
-                    _audit(tool, params, "ACCEPTED" if result["accepted"] else f"REJECTED:{result.get('response_code')}")
-                else:
-                    _audit(tool, params, "RETURNED")
-            return result
+                try:
+                    result = fn(*args, **kwargs)
+                except Exception as exc:
+                    if _initiated.get():
+                        _audit(tool, params, f"FAILED:{type(exc).__name__}")
+                    raise
+                if _initiated.get() and isinstance(result, dict):
+                    if "accepted" in result:
+                        outcome = "ACCEPTED" if result["accepted"] else f"REJECTED:{result.get('response_code')}"
+                    elif "sent" in result and "failed" in result:
+                        outcome = f"SENT:{result['sent']}/FAILED:{result['failed']}"
+                    elif "success" in result:
+                        outcome = "ACCEPTED" if result["success"] else f"REJECTED:{result.get('status') or 'error'}"
+                    else:
+                        outcome = "RETURNED"
+                    _audit(tool, params, outcome)
+                return result
+            finally:
+                _initiated.reset(token)
 
         return wrapper
     return deco
@@ -116,6 +136,7 @@ def _terminal_audit(tool: str):
 READ_ONLY = {"readOnlyHint": True, "idempotentHint": True, "openWorldHint": False}
 
 mcp = FastMCP(
+    version=__version__,
     name="mpesa-mcp",
     instructions=(
         "Tools for M-Pesa (Safaricom Daraja) and Africa's Talking APIs. "
@@ -1041,6 +1062,7 @@ def mpesa_imsi_query(
 # ── AFRICA'S TALKING ─────────────────────────────────────────────────────────
 
 @mcp.tool(description="Send an SMS to up to 1,000 recipients through Africa's Talking. Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode it needs confirm_send=true and refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.", annotations={"title": "Send SMS", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("sms_send")
 def sms_send(
     message: Annotated[str, "SMS message text. Unicode supported (Kiswahili etc.)"],
     recipients: Annotated[list[str], "Phone numbers in E.164 format e.g. ['+254712345678']"],
@@ -1055,6 +1077,7 @@ def sms_send(
     blocked = _guard_sms(recipients, confirm_send)
     if blocked:
         return blocked
+    _audit("sms_send", {"recipients": len(recipients)}, "INITIATED")
     _at_init()
     sms = africastalking.SMS
     kwargs: dict = {"message": message, "recipients": recipients}
@@ -1092,6 +1115,7 @@ def _expected_currency(phone: str) -> str | None:
 
 
 @mcp.tool(description="Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode it needs confirm_send=true and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.", annotations={"title": "Send Airtime", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("airtime_send")
 def airtime_send(
     phone: Annotated[str, "Recipient phone in E.164 format e.g. '+254712345678'"],
     amount: Annotated[str, "Amount as string e.g. '50'. Denominated in currency_code, NOT always KES."],
@@ -1121,6 +1145,7 @@ def airtime_send(
             "expected_currency": expected,
             "provided_currency": currency_code.upper(),
         }
+    _audit("airtime_send", {"phone": phone, "amount": amount}, "INITIATED")
     _at_init()
     at = africastalking.Airtime
     response = at.send(phone_number=phone, amount=amount, currency_code=currency_code)

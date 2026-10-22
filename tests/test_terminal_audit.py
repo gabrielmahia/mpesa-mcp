@@ -120,3 +120,53 @@ def test_there_are_no_bare_environment_reads_by_literal_name_left():
     """Every credential read goes through _env, which names the missing variable; the helper itself reads by variable, not by literal."""
     reads = [i for i, line in enumerate(SERVER_SRC.split("\n"), 1) if 'os.environ["' in line or "os.environ['" in line]
     assert reads == [], f"bare reads at lines {reads}"
+
+
+# ---------------- sms_send and airtime_send: audited on success too, and never with phone numbers ----------------
+class _NS:
+    def __init__(self, **kw):
+        self.__dict__.update(kw)
+
+
+def test_sms_logs_a_count_and_the_terminal_outcome_but_never_a_phone_number(sandbox, caplog):
+    sandbox.setattr(srv, "_at_init", lambda: None)
+    reply = {"SMSMessageData": {"Message": "ok", "Recipients": [{"number": "+254711111111", "status": "Success", "cost": "KES 0.8", "messageId": "a"}, {"number": "+254722222222", "status": "Failed"}]}}
+    sandbox.setattr(srv, "africastalking", _NS(SMS=_NS(send=lambda **k: reply)))
+    with caplog.at_level(logging.INFO):
+        out = srv.sms_send(message="hi", recipients=["+254711111111", "+254722222222"])
+    assert out["sent"] == 1 and out["failed"] == 1
+    assert outcomes(caplog, "sms_send") == ["INITIATED", "SENT:1/FAILED:1"]
+    logged = " ".join(r.getMessage() for r in caplog.records)
+    assert "254711111111" not in logged and "254722222222" not in logged and "'recipients': '2'" in logged
+
+
+def test_airtime_success_and_failure_are_recorded(sandbox, caplog):
+    sandbox.setattr(srv, "_at_init", lambda: None)
+    for status, want in (("Success", "ACCEPTED"), ("Failed", "REJECTED:Failed")):
+        caplog.clear()
+        sandbox.setattr(srv, "africastalking", _NS(Airtime=_NS(send=lambda **k: {"responses": [{"status": status, "amount": "KES 10", "requestId": "r", "errorMessage": None}]})))
+        with caplog.at_level(logging.INFO):
+            srv.airtime_send(phone="+254711111111", amount="10", currency_code="KES")
+        assert outcomes(caplog, "airtime_send") == ["INITIATED", want]
+
+
+def test_an_airtime_currency_mismatch_is_a_refusal_with_no_audit_line_because_nothing_was_initiated(sandbox, caplog):
+    sandbox.setattr(srv, "_at_init", lambda: pytest.fail("must not reach the gateway"))
+    with caplog.at_level(logging.INFO):
+        out = srv.airtime_send(phone="+255711111111", amount="10", currency_code="KES")
+    assert out["success"] is False and "Currency mismatch" in out["error"]
+    assert outcomes(caplog, "airtime_send") == []
+
+
+def test_a_failure_before_initiation_gets_no_terminal_line(sandbox, caplog):
+    """stk_push reads its credentials before it logs INITIATED, so a missing one is a refusal to start, not a failed attempt."""
+    sandbox.delenv("MPESA_PASSKEY")
+    with caplog.at_level(logging.INFO), pytest.raises(srv.ConfigError, match="MPESA_PASSKEY is not set"):
+        srv.mpesa_stk_push(phone="254700000000", amount=10, account_ref="a", description="d")
+    assert outcomes(caplog, "mpesa_stk_push") == []
+
+
+def test_all_thirteen_audited_tools_are_decorated():
+    tree = ast.parse(SERVER_SRC)
+    names = [fn.name for fn in tree.body if isinstance(fn, ast.FunctionDef) and any("_terminal_audit" in ast.unparse(d) for d in fn.decorator_list)]
+    assert len(names) == 13 and {"sms_send", "airtime_send"} <= set(names)
