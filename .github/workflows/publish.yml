@@ -12,6 +12,9 @@ on:
     tags: ["v*"]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     name: Test before publish
@@ -39,7 +42,7 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install build && python -m build
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - uses: pypa/gh-action-pypi-publish@7245906fb61fa33a13554f9d5fb856fe61758086  # v1.14.3 (pinned: release/v1 is a moving branch)
         with:
           skip-existing: true   # a re-run, or a version uploaded by hand, does not fail
 
@@ -53,10 +56,25 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v7
-      - name: Install MCP Publisher
+      - name: Is this version already in the registry?
+        id: guard
         run: |
-          curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher
+          name=$(jq -r .name server.json); version=$(jq -r .version server.json)
+          code=$(curl -s -o /dev/null -w '%{http_code}' --max-time 90 "https://registry.modelcontextprotocol.io/v0.1/servers/$(printf '%s' "$name" | sed 's#/#%2F#')/versions/$version" || true)
+          echo "registry answered $code for $name $version"
+          if [ "$code" = "200" ]; then echo "skip=true" >> "$GITHUB_OUTPUT"; else echo "skip=false" >> "$GITHUB_OUTPUT"; fi
+      - name: Install MCP Publisher (pinned version, checksum verified)
+        if: steps.guard.outputs.skip != 'true'
+        env:
+          PUBLISHER_VERSION: "1.8.1"
+          PUBLISHER_SHA256: "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc"  # mcp-publisher_linux_amd64.tar.gz, from registry_1.8.1_checksums.txt
+        run: |
+          curl -sSLO "https://github.com/modelcontextprotocol/registry/releases/download/v${PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${PUBLISHER_SHA256}  mcp-publisher_linux_amd64.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher_linux_amd64.tar.gz mcp-publisher
       - name: Login to MCP Registry
+        if: steps.guard.outputs.skip != 'true'
         run: ./mcp-publisher login github-oidc
       - name: Publish to MCP Registry
+        if: steps.guard.outputs.skip != 'true'
         run: ./mcp-publisher publish
