@@ -1,5 +1,11 @@
 # Changelog — mpesa-mcp
 
+## 0.4.5
+- **Security hardening:** a session budget bounds the TOTAL a server process may authorise in live mode (`MPESA_SESSION_BUDGET_KES`, default **300,000** KES; `0` or `none` = no budget, an explicit opt-out). Until now the 100,000 KES per-transaction cap bounded one payment but not the sum, so an agent could repeat a capped payment without limit. All eight money-out tools are covered through the single guard. It is counted when a payment is authorised and is not refunded on failure; a refusal is audited as `BLOCKED_OVER_SESSION_BUDGET` and tells the model not to retry. The sandbox is unaffected.
+- **Behaviour change:** if you legitimately move more than 300,000 KES in one server session in live mode, set `MPESA_SESSION_BUDGET_KES` higher (or `0`).
+- **Docs:** the README now says that `confirm_send` is supplied by the model, so the independent check is the MCP client's approval prompt, and recommends bounding the loss in the payment rail too (a dedicated low-balance shortcode, initiator limits).
+- Tests: 9 new; the process-wide counter is reset around every test (`tests/conftest.py`), and one existing test that sends a very large amount now opts out of the budget explicitly. A test that could not fail was caught in review and replaced.
+
 ## 0.4.4
 - **Fixed (audit):** every tool that logs `INITIATED` now also logs how the call ended, so the trail can be reconciled: `ACCEPTED`, `REJECTED:<code or status>`, `SENT:<n>/FAILED:<m>` (SMS), `RETURNED`, or `FAILED:<ExceptionType>` (the exception still propagates; only its type is logged, never its message). Refusals by the guard are still audited once as `BLOCKED_*`. A terminal line is written only if `INITIATED` was logged during that call.
 - **Fixed (audit gap):** `sms_send` and `airtime_send` logged nothing when they succeeded; they now log `INITIATED` and a terminal line. SMS logs the number of recipients, never the numbers.

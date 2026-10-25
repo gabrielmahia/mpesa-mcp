@@ -49,6 +49,7 @@ import inspect
 import logging
 import os
 import re
+import threading
 import time
 from typing import Annotated
 
@@ -175,6 +176,12 @@ def _get_mpesa_token() -> str:
 # A language model can be talked into paying anyone any amount (prompt injection against payment tools is a documented attack on agent payment
 # protocols). In LIVE mode these tools therefore need the user's explicit approval (confirm_send=true) and stay under a per-transaction cap.
 DEFAULT_LIVE_CAP_KES = 100_000
+# The per-transaction cap bounds one payment, not the total: an agent could repeat a capped payment indefinitely. A session budget bounds the TOTAL a server process may
+# authorise (India's UPI Reserve Pay and Alipay's agent-payment thresholds bound the aggregate the same way). Counted when a payment is authorised and never refunded
+# on failure, because a timed-out call may still have moved money.
+DEFAULT_LIVE_BUDGET_KES = 300_000
+_spend_lock = threading.Lock()
+_spent_kes = 0.0
 
 
 def _is_sandbox() -> bool:
@@ -194,8 +201,29 @@ def _max_amount() -> int:
         return DEFAULT_LIVE_CAP_KES
 
 
+def _session_budget() -> int:
+    """MPESA_SESSION_BUDGET_KES: total this server process may authorise in live mode (default 300,000; 0 or 'none' = no budget, an explicit opt-out)."""
+    raw = os.environ.get("MPESA_SESSION_BUDGET_KES", "").strip().lower()
+    if not raw:
+        return DEFAULT_LIVE_BUDGET_KES
+    if raw in ("0", "none", "unlimited"):
+        return 0
+    try:
+        return max(int(raw), 0)
+    except ValueError:
+        return DEFAULT_LIVE_BUDGET_KES
+
+
+def _reset_session_spend() -> None:
+    """Set the session spend counter to zero (used by tests; an operator restarts the server instead)."""
+    global _spent_kes
+    with _spend_lock:
+        _spent_kes = 0.0
+
+
 def _guard(tool: str, amount, confirm_send: bool):
     """None if the call may proceed; otherwise the refusal to return to the model. The sandbox is never restricted."""
+    global _spent_kes
     if _is_sandbox():
         return None
     try:
@@ -212,6 +240,14 @@ def _guard(tool: str, amount, confirm_send: bool):
     if cap and value > cap:
         _audit(tool, {"amount": amount}, "BLOCKED_OVER_CAP")
         return {"success": False, "sandbox": False, "error": f"Amount {value:,.0f} exceeds the per-transaction cap of KES {cap:,}. An operator can change it with MPESA_MAX_AMOUNT_KES (0 = no cap)."}
+    budget = _session_budget()
+    if budget:
+        with _spend_lock:
+            if _spent_kes + value > budget:
+                spent, left = _spent_kes, max(budget - _spent_kes, 0)
+                _audit(tool, {"amount": amount}, "BLOCKED_OVER_SESSION_BUDGET")
+                return {"success": False, "sandbox": False, "error": f"Session budget reached: this server process has already authorised KES {spent:,.0f} of its KES {budget:,} limit, and KES {value:,.0f} more would exceed it (KES {left:,.0f} left). Do not retry; tell the user. Only an operator can raise the limit (MPESA_SESSION_BUDGET_KES; 0 = no budget) or restart the server."}
+            _spent_kes += value
     return None
 
 

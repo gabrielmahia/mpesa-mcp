@@ -334,5 +334,15 @@ A language model can be talked into paying anyone any amount: prompt injection a
 
 - **Confirmation:** they refuse unless called with `confirm_send=true`. The agent must show the user the recipient and amount and set it only after explicit approval.
 - **Cap:** amounts above `MPESA_MAX_AMOUNT_KES` (default **100,000**; `0` = no cap) are refused.
+- **Session budget:** one server process may authorise at most `MPESA_SESSION_BUDGET_KES` in total (default **300,000**; `0` = no budget). The cap bounds one payment; the budget bounds the **sum**, so an agent cannot repeat a capped payment without limit. It is counted when a payment is authorised and is not refunded if the call later fails (a timed-out call may still have moved money), and it resets only when the server restarts. Only the operator, not the model, can change it. If you legitimately move more than 300,000 KES in one session, set it higher.
+
+#### Bound the loss outside the tool as well
+
+These guards run inside the tool, the layer an agent controls. Two checks sit outside it, and you should use both:
+
+1. **`confirm_send` is supplied by the model itself**, so it is not an independent check. The independent one is your MCP client's approval prompt for each tool call, if your client has one: keep it on for the eight money-out tools and never set them to "always allow".
+2. **Bound the loss in the payment rail.** Pay out from a dedicated business shortcode or working account that holds only what you are prepared to lose, and use whatever initiator limits or approval (maker-checker) controls your M-PESA organisation account offers; this server cannot see them, so check Safaricom's current documentation.
+
+This is the layered design that India's agentic-payment pilots (a pre-funded, merchant-scoped reservation and delegated limits enforced by the network) and Alipay's agent payments (a user-set threshold below which an agent may pay and above which a person confirms, a way to review and revoke an agent's authority, and a loss guarantee) arrived at independently.
 - **Opt-out:** `MPESA_REQUIRE_CONFIRMATION=false` removes the confirmation requirement for fully automated setups you control. Do that only deliberately.
 - The **sandbox is never restricted**. Customer-approved flows (STK Push, Ratiba, Bill Manager) are unchanged: the customer approves on their handset.

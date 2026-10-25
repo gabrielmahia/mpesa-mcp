@@ -27,7 +27,7 @@ Single-file architecture — all tools are in `server.py`. The server uses FastM
 
 ## Tool annotations (critical)
 
-Every tool declares MCP `ToolAnnotations` (a test enforces it); the eight money-out tools are also bounded in live mode by `confirm_send` and `MPESA_MAX_AMOUNT_KES`. **Do not remove or change these** without understanding the implications:
+Every tool declares MCP `ToolAnnotations` (a test enforces it); the eight money-out tools are also bounded in live mode by `confirm_send`, `MPESA_MAX_AMOUNT_KES` (per payment) and `MPESA_SESSION_BUDGET_KES` (total per server process). **Do not remove or change these** without understanding the implications:
 
 - `readOnlyHint: True` on query tools — clients auto-approve these
 - `destructiveHint: True` on write tools — clients show confirmation dialogs
