@@ -338,11 +338,13 @@ A language model can be talked into paying anyone any amount: prompt injection a
 
 #### Bound the loss outside the tool as well
 
-These guards run inside the tool, the layer an agent controls. Two checks sit outside it, and you should use both:
+These guards run inside the tool, the layer an agent controls. Two checks sit outside it, and you should use both, and keep the limits small:
 
 1. **`confirm_send` is supplied by the model itself**, so it is not an independent check. The independent one is your MCP client's approval prompt for each tool call, if your client has one: keep it on for the eight money-out tools and never set them to "always allow".
 2. **Bound the loss in the payment rail.** Pay out from a dedicated business shortcode or working account that holds only what you are prepared to lose, and use whatever initiator limits or approval (maker-checker) controls your M-PESA organisation account offers; this server cannot see them, so check Safaricom's current documentation.
 
 This is the layered design that India's agentic-payment pilots (a pre-funded, merchant-scoped reservation and delegated limits enforced by the network) and Alipay's agent payments (a user-set threshold below which an agent may pay and above which a person confirms, a way to review and revoke an agent's authority, and a loss guarantee) arrived at independently.
+
+3. **Start small.** The defaults here (100,000 KES per payment, 300,000 per session) are ceilings for a business account, not recommendations. Brazilian banks that let customers pay by voice or text through an AI assistant on WhatsApp start at roughly R$200 to R$800 per payment, ask for a confirmation on each one, and send anything larger to the bank's own app: a small fraction of the defaults here. Set `MPESA_MAX_AMOUNT_KES` and `MPESA_SESSION_BUDGET_KES` to the smallest figures you actually need, and raise them only when you have a reason.
 - **Opt-out:** `MPESA_REQUIRE_CONFIRMATION=false` removes the confirmation requirement for fully automated setups you control. Do that only deliberately.
 - The **sandbox is never restricted**. Customer-approved flows (STK Push, Ratiba, Bill Manager) are unchanged: the customer approves on their handset.
