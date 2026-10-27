@@ -6,6 +6,8 @@
 
 Give your AI agent the ability to trigger M-Pesa payments, check transaction status, send SMS, and top up airtime across 20+ African telecom networks.
 
+**Maintainer:** Gabriel Mahia · [Software citation](CITATION.cff) · [MIT license](LICENSE). Please cite or link to the original project when it helps your work; preserve required copyright and license notices if redistributing substantial portions. Public citation is appreciated, not an additional MIT condition.
+
 [![Tests](https://github.com/gabrielmahia/mpesa-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/gabrielmahia/mpesa-mcp/actions)
 [![PyPI](https://img.shields.io/pypi/v/mpesa-mcp)](https://pypi.org/project/mpesa-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
