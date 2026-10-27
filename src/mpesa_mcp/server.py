@@ -176,11 +176,11 @@ def _get_mpesa_token() -> str:
 # ── Bounded authorization for tools that send money OUT ────────────────────────────────────────────────────────────────────────────────
 # A language model can be talked into paying anyone any amount (prompt injection against payment tools is a documented attack on agent payment
 # protocols). In LIVE mode these tools therefore need the user's explicit approval (confirm_send=true) and stay under a per-transaction cap.
-DEFAULT_LIVE_CAP_KES = 100_000
+DEFAULT_LIVE_CAP_KES = 20_000   # lowered from 100,000 in 0.5.0: assistant-driven payments elsewhere (Brazil) start at a few hundred reais
 # The per-transaction cap bounds one payment, not the total: an agent could repeat a capped payment indefinitely. A session budget bounds the TOTAL a server process may
 # authorise (India's UPI Reserve Pay and Alipay's agent-payment thresholds bound the aggregate the same way). Counted when a payment is authorised and never refunded
 # on failure, because a timed-out call may still have moved money.
-DEFAULT_LIVE_BUDGET_KES = 300_000
+DEFAULT_LIVE_BUDGET_KES = 50_000   # lowered from 300,000 in 0.5.0
 _spend_lock = threading.Lock()
 _spent_kes = 0.0
 _events: deque = deque(maxlen=50)   # the server's own record of what the guard authorised or refused (the model cannot edit it)
@@ -259,33 +259,59 @@ def _record(tool: str, amount, recipient, outcome: str) -> None:
             _blocked_count += 1
 
 
-def _guard(tool: str, amount, confirm_send: bool, recipient=None):
-    """None if the call may proceed; otherwise the refusal to return to the model. The sandbox is never restricted. recipient is the phone, paybill or till being paid (None where a tool has no free recipient)."""
-    global _spent_kes
-    if _is_sandbox():
-        return None
+def _evaluate(amount, confirm_send, recipient, *, check_confirmation=True):
+    """The stateless checks, in order: amount, confirmation, per-payment cap, recipient allowlist. Returns (value, code, message); code is None when they all pass. No side effects."""
     try:
         value = float(amount)
     except (TypeError, ValueError):
         value = -1
     if value <= 0:
-        _audit(tool, {"amount": amount}, "BLOCKED_INVALID_AMOUNT")
-        _record(tool, amount, recipient, "BLOCKED_INVALID_AMOUNT")
-        return {"success": False, "sandbox": False, "error": "Amount must be a positive number."}
-    if os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false" and confirm_send is not True:
-        _audit(tool, {"amount": amount}, "BLOCKED_NO_CONFIRMATION")
-        _record(tool, amount, recipient, "BLOCKED_NO_CONFIRMATION")
-        return {"success": False, "sandbox": False, "error": "Confirmation required: this tool sends money out of the business account. Show the user the recipient and amount, and call again with confirm_send=true only after they explicitly approve."}
+        return value, "BLOCKED_INVALID_AMOUNT", "Amount must be a positive number."
+    if check_confirmation and os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false" and confirm_send is not True:
+        return value, "BLOCKED_NO_CONFIRMATION", "Confirmation required: this tool sends money out of the business account. Show the user the recipient and amount, and call again with confirm_send=true only after they explicitly approve."
     cap = _max_amount()
     if cap and value > cap:
-        _audit(tool, {"amount": amount}, "BLOCKED_OVER_CAP")
-        _record(tool, amount, recipient, "BLOCKED_OVER_CAP")
-        return {"success": False, "sandbox": False, "error": f"Amount {value:,.0f} exceeds the per-transaction cap of KES {cap:,}. An operator can change it with MPESA_MAX_AMOUNT_KES (0 = no cap)."}
+        return value, "BLOCKED_OVER_CAP", f"Amount {value:,.0f} exceeds the per-transaction cap of KES {cap:,}. An operator can change it with MPESA_MAX_AMOUNT_KES (0 = no cap)."
     allow = _allowed_recipients()
     if allow and recipient is not None and _normalize_recipient(recipient) not in allow:
-        _audit(tool, {"amount": amount}, "BLOCKED_RECIPIENT_NOT_ALLOWED")
-        _record(tool, amount, recipient, "BLOCKED_RECIPIENT_NOT_ALLOWED")
-        return {"success": False, "sandbox": False, "error": "Recipient is not on this server's allowlist (MPESA_ALLOWED_RECIPIENTS). Do not retry with a different recipient; tell the user. Only an operator can change the list."}
+        return value, "BLOCKED_RECIPIENT_NOT_ALLOWED", "Recipient is not on this server's allowlist (MPESA_ALLOWED_RECIPIENTS). Do not retry with a different recipient; tell the user. Only an operator can change the list."
+    return value, None, None
+
+
+def _budget_message(value, spent, left, budget) -> str:
+    return f"Session budget reached: this server process has already authorised KES {spent:,.0f} of its KES {budget:,} limit, and KES {value:,.0f} more would exceed it (KES {left:,.0f} left). Do not retry; tell the user. Only an operator can raise the limit (MPESA_SESSION_BUDGET_KES; 0 = no budget) or restart the server."
+
+
+def _refusal(code: str, message: str) -> dict:
+    return {"success": False, "sandbox": False, "error": message}
+
+
+def _preflight(tool: str, amount, recipient=None):
+    """Would the guard refuse this payment, ignoring the confirmation? Returns (code, refusal dict) or None. Read-only: it spends nothing and records nothing, so the human is never
+    asked to approve a payment that would be refused anyway."""
+    if _is_sandbox():
+        return None
+    value, code, message = _evaluate(amount, True, recipient, check_confirmation=False)
+    if code:
+        return code, _refusal(code, message)
+    budget = _session_budget()
+    with _spend_lock:
+        spent, left = _spent_kes, max(budget - _spent_kes, 0)
+    if budget and spent + value > budget:
+        return "BLOCKED_OVER_SESSION_BUDGET", _refusal("BLOCKED_OVER_SESSION_BUDGET", _budget_message(value, spent, left, budget))
+    return None
+
+
+def _guard(tool: str, amount, confirm_send: bool, recipient=None):
+    """None if the call may proceed; otherwise the refusal to return to the model. The sandbox is never restricted. recipient is the phone, paybill or till being paid (None where a tool has no free recipient)."""
+    global _spent_kes
+    if _is_sandbox():
+        return None
+    value, code, message = _evaluate(amount, confirm_send, recipient)
+    if code:
+        _audit(tool, {"amount": amount}, code)
+        _record(tool, amount, recipient, code)
+        return _refusal(code, message)
     budget = _session_budget()
     with _spend_lock:
         over = bool(budget) and _spent_kes + value > budget
@@ -295,10 +321,9 @@ def _guard(tool: str, amount, confirm_send: bool, recipient=None):
     if over:
         _audit(tool, {"amount": amount}, "BLOCKED_OVER_SESSION_BUDGET")
         _record(tool, amount, recipient, "BLOCKED_OVER_SESSION_BUDGET")
-        return {"success": False, "sandbox": False, "error": f"Session budget reached: this server process has already authorised KES {spent:,.0f} of its KES {budget:,} limit, and KES {value:,.0f} more would exceed it (KES {left:,.0f} left). Do not retry; tell the user. Only an operator can raise the limit (MPESA_SESSION_BUDGET_KES; 0 = no budget) or restart the server."}
+        return _refusal("BLOCKED_OVER_SESSION_BUDGET", _budget_message(value, spent, left, budget))
     _record(tool, amount, recipient, "AUTHORISED")
     return None
-
 
 
 DEFAULT_SMS_RECIPIENT_CAP = 50
@@ -1270,6 +1295,11 @@ def mpesa_session_report() -> dict:
             "remaining_kes": max(budget - spent, 0) if budget else None, "confirmation_required": os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false",
             "recipient_allowlist_active": bool(allow), "recipients_allowed": len(allow) if allow else None, "authorised_count": n_auth, "blocked_count": n_blocked, "recent": events,
             "note": "Counts since this server process started. Authorised means the guard let the call proceed, not that Safaricom accepted it: use mpesa_transaction_status to confirm a payment."}
+
+
+from .confirm import HumanConfirmation  # noqa: E402  (registered last: it asks the human before any guarded tool runs)
+
+mcp.add_middleware(HumanConfirmation())
 
 
 if __name__ == "__main__":

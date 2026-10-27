@@ -4,31 +4,13 @@ import inspect
 
 import pytest
 from fastmcp import Client
+from helpers import Reached, fn  # noqa: F401
 
 from mpesa_mcp import server
 
 OUT = {"mpesa_b2c": dict(phone="0712345678", amount=500), "mpesa_business_paybill": dict(receiver_paybill="123456", amount=500, account_reference="A"), "mpesa_business_buygoods": dict(till_number="123456", amount=500),
        "mpesa_business_pochi": dict(phone="0712345678", amount=500), "mpesa_reversal": dict(transaction_id="ABC123", amount=500), "mpesa_tax_remittance": dict(amount=500, account_reference="PRN1"),
        "mpesa_b2b_express_checkout": dict(receiver_till="123456", amount=500, account_reference="A"), "airtime_send": dict(phone="+254712345678", amount=500)}
-fn = lambda name: (getattr(server, name).fn if hasattr(getattr(server, name), "fn") else getattr(server, name))  # noqa: E731
-
-
-class Reached(Exception):
-    pass
-
-
-@pytest.fixture
-def live(monkeypatch):
-    monkeypatch.setenv("MPESA_SANDBOX", "false")
-    monkeypatch.delenv("MPESA_MAX_AMOUNT_KES", raising=False)
-    monkeypatch.delenv("MPESA_REQUIRE_CONFIRMATION", raising=False)
-    for k in ("MPESA_INITIATOR_NAME", "MPESA_SECURITY_CREDENTIAL", "MPESA_SHORTCODE", "MPESA_RESULT_URL", "MPESA_TIMEOUT_URL", "MPESA_CALLBACK_URL", "MPESA_PASSKEY", "MPESA_CONSUMER_KEY", "MPESA_CONSUMER_SECRET", "AT_API_KEY", "AT_USERNAME"):
-        monkeypatch.setenv(k, "x")
-    def boom(*a, **k):
-        raise Reached("the network was reached")
-    monkeypatch.setattr(server.requests, "post", boom)
-    monkeypatch.setattr(server.requests, "get", boom)
-    monkeypatch.setattr(server, "_get_mpesa_token", lambda: "tok")
 
 
 @pytest.mark.parametrize("name", sorted(OUT))
@@ -43,11 +25,12 @@ def test_live_with_confirmation_within_the_cap_proceeds_to_the_network(name, liv
         fn(name)(**OUT[name], confirm_send=True)
 
 
-def test_the_default_cap_is_100000_and_exactly_the_cap_is_allowed(live):
-    over = fn("mpesa_b2c")(phone="0712345678", amount=100_001, confirm_send=True)
-    assert over["success"] is False and "cap of KES 100,000" in over["error"]
+def test_the_default_cap_is_the_cap_and_exactly_the_cap_is_allowed(live):
+    cap = server.DEFAULT_LIVE_CAP_KES
+    over = fn("mpesa_b2c")(phone="0712345678", amount=cap + 1, confirm_send=True)
+    assert over["success"] is False and f"cap of KES {cap:,}" in over["error"]
     with pytest.raises(Reached):
-        fn("mpesa_b2c")(phone="0712345678", amount=100_000, confirm_send=True)
+        fn("mpesa_b2c")(phone="0712345678", amount=cap, confirm_send=True)
 
 
 def test_the_cap_is_configurable_and_zero_means_no_cap(live, monkeypatch):
@@ -89,22 +72,31 @@ def test_every_outflow_tool_is_guarded_and_advertises_confirm_send():
 
 
 def test_the_session_budget_bounds_the_total_not_just_each_payment(live):
-    """100,000 per payment, 300,000 per session by default: the fourth capped payment is refused and never reaches the network."""
-    for _ in range(3):
+    """The cap bounds one payment and the budget bounds the sum: capped payments are allowed until the budget is spent, and the next one never reaches the network."""
+    cap, budget = server.DEFAULT_LIVE_CAP_KES, server.DEFAULT_LIVE_BUDGET_KES
+    n = budget // cap
+    for _ in range(n):
         with pytest.raises(Reached):
-            fn("mpesa_b2c")(phone="0712345678", amount=100_000, confirm_send=True)
-    r = fn("mpesa_b2c")(phone="0712345678", amount=1, confirm_send=True)
-    assert r["success"] is False and "Session budget reached" in r["error"] and "KES 300,000 of its KES 300,000" in r["error"] and "KES 0 left" in r["error"]
+            fn("mpesa_b2c")(phone="0712345678", amount=cap, confirm_send=True)
+    spent, left = n * cap, budget - n * cap
+    r = fn("mpesa_b2c")(phone="0712345678", amount=left + 1, confirm_send=True)
+    assert r["success"] is False and "Session budget reached" in r["error"] and f"KES {spent:,} of its KES {budget:,}" in r["error"] and f"KES {left:,} left" in r["error"]
+    if left:
+        with pytest.raises(Reached):
+            fn("mpesa_b2c")(phone="0712345678", amount=left, confirm_send=True)   # exactly the remainder is allowed
+    assert "KES 0 left" in fn("mpesa_b2c")(phone="0712345678", amount=1, confirm_send=True)["error"]
 
 
 def test_the_budget_is_shared_by_every_tool_that_sends_money_out(live):
+    third = server.DEFAULT_LIVE_BUDGET_KES // 3
+    assert third <= server.DEFAULT_LIVE_CAP_KES
     with pytest.raises(Reached):
-        fn("mpesa_b2c")(phone="0712345678", amount=100_000, confirm_send=True)
+        fn("mpesa_b2c")(phone="0712345678", amount=third, confirm_send=True)
     with pytest.raises(Reached):
-        fn("mpesa_business_paybill")(receiver_paybill="123456", amount=100_000, account_reference="A", confirm_send=True)
+        fn("mpesa_business_paybill")(receiver_paybill="123456", amount=third, account_reference="A", confirm_send=True)
     with pytest.raises(Reached):
-        fn("airtime_send")(phone="+254712345678", amount=100_000, confirm_send=True)
-    assert "Session budget reached" in fn("mpesa_business_pochi")(phone="0712345678", amount=1, confirm_send=True)["error"]
+        fn("airtime_send")(phone="+254712345678", amount=third, confirm_send=True)
+    assert "Session budget reached" in fn("mpesa_business_pochi")(phone="0712345678", amount=server.DEFAULT_LIVE_BUDGET_KES - 3 * third + 1, confirm_send=True)["error"]
 
 
 def test_a_refused_call_does_not_spend_the_budget(live, monkeypatch):
@@ -126,14 +118,19 @@ def test_a_payment_that_exactly_fills_the_budget_is_allowed_and_the_next_is_not(
 @pytest.mark.parametrize("raw", ["0", "none", "unlimited"])
 def test_the_budget_can_be_opted_out_only_explicitly(live, monkeypatch, raw):
     monkeypatch.setenv("MPESA_SESSION_BUDGET_KES", raw)
-    for _ in range(5):
+    for _ in range((server.DEFAULT_LIVE_BUDGET_KES // server.DEFAULT_LIVE_CAP_KES) + 3):
         with pytest.raises(Reached):
-            fn("mpesa_b2c")(phone="0712345678", amount=100_000, confirm_send=True)
+            fn("mpesa_b2c")(phone="0712345678", amount=server.DEFAULT_LIVE_CAP_KES, confirm_send=True)
 
 
 def test_an_unparseable_budget_falls_back_to_the_safe_default(live, monkeypatch):
     monkeypatch.setenv("MPESA_SESSION_BUDGET_KES", "lots")
-    assert server._session_budget() == server.DEFAULT_LIVE_BUDGET_KES == 300_000
+    assert server._session_budget() == server.DEFAULT_LIVE_BUDGET_KES
+
+
+def test_the_documented_defaults_are_pinned_so_that_changing_them_is_a_decision():
+    """README and CHANGELOG state these numbers (lowered in 0.5.0 from 100,000 and 300,000, in line with the small caps assistant-driven payments start at elsewhere)."""
+    assert (server.DEFAULT_LIVE_CAP_KES, server.DEFAULT_LIVE_BUDGET_KES) == (20_000, 50_000) and server.DEFAULT_LIVE_BUDGET_KES > server.DEFAULT_LIVE_CAP_KES
 
 
 def test_the_sandbox_is_not_subject_to_the_budget(monkeypatch):

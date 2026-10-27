@@ -6,12 +6,12 @@
     "url": "https://github.com/gabrielmahia/mpesa-mcp",
     "source": "github"
   },
-  "version": "0.4.6",
+  "version": "0.5.0",
   "packages": [
     {
       "registryType": "pypi",
       "identifier": "mpesa-mcp",
-      "version": "0.4.6",
+      "version": "0.5.0",
       "transport": {
         "type": "stdio"
       }
