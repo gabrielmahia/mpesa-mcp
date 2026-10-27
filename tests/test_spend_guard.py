@@ -140,3 +140,92 @@ def test_the_sandbox_is_not_subject_to_the_budget(monkeypatch):
     monkeypatch.setenv("MPESA_SANDBOX", "true")
     monkeypatch.setenv("MPESA_SESSION_BUDGET_KES", "1")
     assert server._guard("mpesa_b2c", 10_000_000, False) is None
+
+
+RECIPIENT_PARAMS = {"mpesa_b2c": "phone", "mpesa_business_paybill": "receiver_paybill", "mpesa_business_buygoods": "till_number", "mpesa_business_pochi": "phone", "mpesa_b2b_express_checkout": "receiver_till", "airtime_send": "phone"}
+
+
+def _call_args(tool, recipient):
+    """Build a valid call for any guarded tool by introspection: the given recipient, KES 500, confirmation, and a harmless value for anything else required."""
+    import inspect
+    from typing import Annotated, get_args, get_origin
+    kwargs = {}
+    for p in inspect.signature(fn(tool)).parameters.values():
+        if p.name == RECIPIENT_PARAMS[tool]:
+            kwargs[p.name] = recipient
+        elif p.name == "amount":
+            kwargs[p.name] = 500
+        elif p.name == "confirm_send":
+            kwargs[p.name] = True
+        elif p.default is inspect.Parameter.empty:
+            base = get_args(p.annotation)[0] if get_origin(p.annotation) is Annotated else p.annotation
+            kwargs[p.name] = 1 if base is int else "A1"
+    return kwargs
+
+
+def _listed(tool):
+    return "254711111111" if RECIPIENT_PARAMS[tool] == "phone" else "123456"
+
+
+@pytest.mark.parametrize("tool", sorted(RECIPIENT_PARAMS))
+def test_the_recipient_allowlist_covers_every_tool_that_has_a_free_recipient(live, monkeypatch, tool):
+    monkeypatch.setenv("MPESA_ALLOWED_RECIPIENTS", _listed(tool))
+    other = "0799999999" if RECIPIENT_PARAMS[tool] == "phone" else "999999"
+    r = fn(tool)(**_call_args(tool, other))
+    assert r["success"] is False and "allowlist" in r["error"], tool
+    listed_call = "+254711111111" if tool == "airtime_send" else _listed(tool)   # airtime needs E.164; the leading + must not stop it matching the list
+    with pytest.raises(Reached):
+        fn(tool)(**_call_args(tool, listed_call))
+
+
+@pytest.mark.parametrize("fmt", ["0712345678", "+254712345678", "254712345678", "712345678", "0712 345 678", "0712-345-678"])
+def test_a_listed_phone_is_recognised_in_any_kenyan_format(live, monkeypatch, fmt):
+    monkeypatch.setenv("MPESA_ALLOWED_RECIPIENTS", "254712345678")
+    with pytest.raises(Reached):
+        fn("mpesa_b2c")(phone=fmt, amount=500, confirm_send=True)
+
+
+def test_a_refusal_by_the_allowlist_spends_nothing_and_is_recorded(live, monkeypatch):
+    monkeypatch.setenv("MPESA_ALLOWED_RECIPIENTS", "0712345678")
+    assert "allowlist" in fn("mpesa_b2c")(phone="0799999999", amount=500, confirm_send=True)["error"]
+    rep = fn("mpesa_session_report")()
+    assert rep["spent_kes"] == 0 and rep["blocked_count"] == 1 and rep["authorised_count"] == 0 and rep["recent"][-1]["outcome"] == "BLOCKED_RECIPIENT_NOT_ALLOWED"
+
+
+def test_no_allowlist_means_no_restriction_and_a_tool_without_a_free_recipient_is_not_blocked_by_one(live, monkeypatch):
+    with pytest.raises(Reached):
+        fn("mpesa_b2c")(phone="0799999999", amount=500, confirm_send=True)
+    monkeypatch.setenv("MPESA_ALLOWED_RECIPIENTS", "0712345678")
+    assert server._guard("mpesa_reversal", 500, True) is None
+
+
+def test_the_session_report_is_the_servers_own_record_of_what_it_authorised(live, monkeypatch):
+    monkeypatch.setenv("MPESA_SESSION_BUDGET_KES", "2000")
+    with pytest.raises(Reached):
+        fn("mpesa_b2c")(phone="0712345678", amount=500, confirm_send=True)
+    rep = fn("mpesa_session_report")()
+    assert rep["success"] and rep["limits_apply"] and rep["spent_kes"] == 500 and rep["remaining_kes"] == 1500 and rep["session_budget_kes"] == 2000
+    assert rep["authorised_count"] == 1 and rep["blocked_count"] == 0
+    last = rep["recent"][-1]
+    assert last["tool"] == "mpesa_b2c" and last["outcome"] == "AUTHORISED" and last["amount"] == 500
+
+
+def test_the_session_report_never_contains_a_full_recipient_number(live):
+    with pytest.raises(Reached):
+        fn("mpesa_b2c")(phone="0712345678", amount=500, confirm_send=True)
+    blob = str(fn("mpesa_session_report")())
+    assert "0712345678" not in blob and "254712345678" not in blob and "2547*****678" in blob
+
+
+def test_spending_is_counted_even_when_the_budget_is_opted_out(live, monkeypatch):
+    monkeypatch.setenv("MPESA_SESSION_BUDGET_KES", "0")
+    with pytest.raises(Reached):
+        fn("mpesa_b2c")(phone="0712345678", amount=500, confirm_send=True)
+    rep = fn("mpesa_session_report")()
+    assert rep["spent_kes"] == 500 and rep["session_budget_kes"] is None and rep["remaining_kes"] is None
+
+
+def test_the_session_report_says_when_the_sandbox_is_not_subject_to_limits(monkeypatch):
+    monkeypatch.setenv("MPESA_SANDBOX", "true")
+    rep = fn("mpesa_session_report")()
+    assert rep["sandbox"] is True and rep["limits_apply"] is False

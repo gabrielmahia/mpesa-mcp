@@ -103,7 +103,7 @@ def test_wrapping_does_not_change_the_tool_schema_clients_see():
     tools = asyncio.run(go())
     schema = tools["mpesa_b2c"].inputSchema
     assert {"phone", "amount", "confirm_send"} <= set(schema["properties"]) and set(schema["required"]) == {"phone", "amount"}
-    assert len(tools) == 23
+    assert len(tools) == 24
 
 
 def test_every_tool_that_logs_initiated_is_decorated_so_a_new_money_tool_cannot_skip_the_terminal_line():

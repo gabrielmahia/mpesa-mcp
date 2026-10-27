@@ -12,7 +12,7 @@ Give your AI agent the ability to trigger M-Pesa payments, check transaction sta
 [![Glama Score](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/score.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 [![smithery badge](https://smithery.ai/badge/@gabrielmahia/mpesa-mcp)](https://smithery.ai/server/@gabrielmahia/mpesa-mcp)
 [![Glama](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badge)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
-[![NSA MCP Compliant](https://img.shields.io/badge/NSA%20CSI%20U%2FOO%2F6030316--26-MCP%20Security%20Compliant-blue)](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf)
+[![NSA CSI guidance: self-assessed](https://img.shields.io/badge/NSA%20CSI%20U%2FOO%2F6030316--26-self--assessed%2C%20not%20certified-lightgrey)](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf)
 
 [![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 
@@ -55,24 +55,23 @@ mpesa-mcp is available as a hosted MCP server on [Glama](https://glama.ai/mcp/se
 
 
 
-## Security — NSA MCP Guidance Compliant
+## Security: how this maps to the NSA's MCP guidance (self-assessed, not certified)
 
-`mpesa-mcp` was updated in response to **NSA CSI U/OO/6030316-26 (May 2026)** — the NSA Artificial Intelligence Security Center's Cybersecurity Information Sheet on Model Context Protocol security.
+`mpesa-mcp` was reviewed against **NSA CSI U/OO/6030316-26 (May 2026)**, the NSA Artificial Intelligence Security Center's Cybersecurity Information Sheet on Model Context Protocol security. That sheet is guidance, not a certifiable standard, so the table below is this project's own self-assessment, not an audit or a certification.
 
-The implementation below documents compliance against the NSA's MCP security framework, control by control.
-
-| NSA Control | Implementation |
+| Control area | What this server does |
 |---|---|
-| Parameter validation | KE phone regex `^254[17]\d{8}$` + amount bounds [1–150,000 KES] |
-| Audit logging | Structured log per tool call; phone numbers SHA-256 hashed |
-| Token lifecycle | OAuth token cached with expiry; auto-refreshed |
-| Error containment | Structured error dicts; no raw exception propagation |
-| HTTPS enforcement | All Daraja API calls HTTPS-only |
-| No hardcoded secrets | All credentials via environment variables |
+| Parameter validation | Kenyan phone numbers are normalised and validated; amounts must be positive and within the configured limits |
+| Audit logging | One structured log line per tool call; phone numbers are logged as a truncated SHA-256 hash, other identifiers as given; a terminal line records how each money-out call ended |
+| Spend limits | A per-payment cap, a per-session budget, an optional recipient allowlist, and confirmation required in live mode (see Bounded authorisation below) |
+| Token lifecycle | The Daraja OAuth token is cached with its expiry and refreshed automatically |
+| Error handling | Daraja API errors are returned as structured results; an unexpected exception is logged by type only and re-raised, and the MCP framework reports it to the client |
+| HTTPS | All Daraja API calls use HTTPS |
+| Secrets | Live credentials come from environment variables; the Safaricom sandbox test shortcode and passkey in this README are published examples, not secrets |
 
-See [SECURITY.md](./SECURITY.md) for the full compliance table.
+See [SECURITY.md](./SECURITY.md) for how to report a vulnerability.
 
-> **Reference:** [NSA CSI_MCP_SECURITY.pdf](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf) — May 2026, UNCLASSIFIED
+> **Reference:** [NSA CSI_MCP_SECURITY.pdf](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf) (May 2026, UNCLASSIFIED)
 
 ## Install
 
@@ -202,7 +201,7 @@ curl https://raw.githubusercontent.com/gabrielmahia/mpesa-mcp/main/.well-known/m
 
 ## Testing and accuracy
 
-The MCP ecosystem benchmark (CData, 2026) found most MCP servers accurate 60–75% of the time on complex queries — particularly silent failures on write operations and partial parameter application.
+These tests check this server's behaviour. This README makes no claim about how accurate any model is when it uses this server.
 
 mpesa-mcp is tested against all three Kenyan phone number formats, boundary amount values, and missing optional fields:
 
@@ -258,9 +257,7 @@ Report vulnerabilities to: contact@aikungfu.dev
 
 ## Research Context
 
-**MCP ecosystem benchmark** (CData, 2026): Most MCP servers achieve 60-75% accuracy on complex queries. mpesa-mcp includes explicit validation and bounds checking to exceed this baseline.
-
-**Swahili AI accuracy** (arXiv:2509.04516, 2025): AI models produce 4× more errors in Swahili than English. mpesa-mcp's Swahili-native tool descriptions are designed to minimize this gap for Swahili-speaking users by eliminating the translation step in tool selection.
+**Swahili and translation** (arXiv:2509.04516, 2025): in a small news-classification experiment, a Swahili-native BERT model made 0.36% errors against 1.47% for an English model applied to machine-translated Swahili, so native beat translate-then-classify on that task. This server's tool descriptions are written so they can be read in Swahili as well as English; no effect of that has been measured here.
 
 **MCP security research** (arXiv:2603.18063, arXiv:2603.21642, 2026): Prompt injection via tool descriptions is the primary MCP attack vector. mpesa-mcp mitigates this through static, versioned tool descriptions and strict input validation.
 
@@ -335,6 +332,8 @@ A language model can be talked into paying anyone any amount: prompt injection a
 - **Confirmation:** they refuse unless called with `confirm_send=true`. The agent must show the user the recipient and amount and set it only after explicit approval.
 - **Cap:** amounts above `MPESA_MAX_AMOUNT_KES` (default **100,000**; `0` = no cap) are refused.
 - **Session budget:** one server process may authorise at most `MPESA_SESSION_BUDGET_KES` in total (default **300,000**; `0` = no budget). The cap bounds one payment; the budget bounds the **sum**, so an agent cannot repeat a capped payment without limit. It is counted when a payment is authorised and is not refunded if the call later fails (a timed-out call may still have moved money), and it resets only when the server restarts. Only the operator, not the model, can change it. If you legitimately move more than 300,000 KES in one session, set it higher.
+- **Allowed recipients:** set `MPESA_ALLOWED_RECIPIENTS` (comma-separated phone numbers, paybills and tills) and the money-out tools will pay only those recipients; anything else is refused. Phone numbers match in any Kenyan format. Unset means no restriction, and for production use a list is recommended: scoping who can be paid is the same idea as a merchant-scoped payment token or a named-merchant reservation. Reversal and tax remittance have no free recipient, so the list does not apply to them.
+- **Session report:** the `mpesa_session_report` tool (read-only) returns the limits, what has been spent and what is left, and the last ten authorisations or refusals with recipients masked, from the server's own record. Use it to check the budget before a payment, and to verify what the server actually authorised instead of relying on what a model says it did.
 
 #### Bound the loss outside the tool as well
 

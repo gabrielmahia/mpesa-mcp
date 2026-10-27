@@ -51,6 +51,7 @@ import os
 import re
 import threading
 import time
+from collections import deque
 from typing import Annotated
 
 import africastalking
@@ -182,6 +183,9 @@ DEFAULT_LIVE_CAP_KES = 100_000
 DEFAULT_LIVE_BUDGET_KES = 300_000
 _spend_lock = threading.Lock()
 _spent_kes = 0.0
+_events: deque = deque(maxlen=50)   # the server's own record of what the guard authorised or refused (the model cannot edit it)
+_authorised_count = 0
+_blocked_count = 0
 
 
 def _is_sandbox() -> bool:
@@ -215,14 +219,48 @@ def _session_budget() -> int:
 
 
 def _reset_session_spend() -> None:
-    """Set the session spend counter to zero (used by tests; an operator restarts the server instead)."""
-    global _spent_kes
+    """Zero the session spend counter and the event record (used by tests; an operator restarts the server instead)."""
+    global _spent_kes, _authorised_count, _blocked_count
     with _spend_lock:
         _spent_kes = 0.0
+        _authorised_count = _blocked_count = 0
+        _events.clear()
 
 
-def _guard(tool: str, amount, confirm_send: bool):
-    """None if the call may proceed; otherwise the refusal to return to the model. The sandbox is never restricted."""
+def _normalize_recipient(raw) -> str:
+    """Kenyan phone numbers in any format become 254XXXXXXXXX; shortcodes and tills stay as digits."""
+    t = re.sub(r"[\s+\-()]", "", str(raw))
+    if re.fullmatch(r"0[17]\d{8}", t):
+        return "254" + t[1:]
+    if re.fullmatch(r"[17]\d{8}", t):
+        return "254" + t
+    return t
+
+
+def _allowed_recipients() -> set:
+    """MPESA_ALLOWED_RECIPIENTS: comma- or space-separated phone numbers, paybills and tills the money-out tools may pay (unset = no restriction)."""
+    raw = os.environ.get("MPESA_ALLOWED_RECIPIENTS", "")
+    return {_normalize_recipient(x) for x in re.split(r"[,;\s]+", raw) if x.strip()}
+
+
+def _mask_recipient(r) -> str:
+    t = _normalize_recipient(r)
+    return t[:4] + "*" * (len(t) - 7) + t[-3:] if len(t) >= 10 else "*" * max(len(t) - 2, 0) + t[-2:]
+
+
+def _record(tool: str, amount, recipient, outcome: str) -> None:
+    """Add to the server's own record (takes the lock itself). Recipients are stored masked."""
+    global _authorised_count, _blocked_count
+    with _spend_lock:
+        _events.append({"time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), "tool": tool, "amount": amount, "recipient": _mask_recipient(recipient) if recipient is not None else None, "outcome": outcome})
+        if outcome == "AUTHORISED":
+            _authorised_count += 1
+        else:
+            _blocked_count += 1
+
+
+def _guard(tool: str, amount, confirm_send: bool, recipient=None):
+    """None if the call may proceed; otherwise the refusal to return to the model. The sandbox is never restricted. recipient is the phone, paybill or till being paid (None where a tool has no free recipient)."""
     global _spent_kes
     if _is_sandbox():
         return None
@@ -232,22 +270,33 @@ def _guard(tool: str, amount, confirm_send: bool):
         value = -1
     if value <= 0:
         _audit(tool, {"amount": amount}, "BLOCKED_INVALID_AMOUNT")
+        _record(tool, amount, recipient, "BLOCKED_INVALID_AMOUNT")
         return {"success": False, "sandbox": False, "error": "Amount must be a positive number."}
     if os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false" and confirm_send is not True:
         _audit(tool, {"amount": amount}, "BLOCKED_NO_CONFIRMATION")
+        _record(tool, amount, recipient, "BLOCKED_NO_CONFIRMATION")
         return {"success": False, "sandbox": False, "error": "Confirmation required: this tool sends money out of the business account. Show the user the recipient and amount, and call again with confirm_send=true only after they explicitly approve."}
     cap = _max_amount()
     if cap and value > cap:
         _audit(tool, {"amount": amount}, "BLOCKED_OVER_CAP")
+        _record(tool, amount, recipient, "BLOCKED_OVER_CAP")
         return {"success": False, "sandbox": False, "error": f"Amount {value:,.0f} exceeds the per-transaction cap of KES {cap:,}. An operator can change it with MPESA_MAX_AMOUNT_KES (0 = no cap)."}
+    allow = _allowed_recipients()
+    if allow and recipient is not None and _normalize_recipient(recipient) not in allow:
+        _audit(tool, {"amount": amount}, "BLOCKED_RECIPIENT_NOT_ALLOWED")
+        _record(tool, amount, recipient, "BLOCKED_RECIPIENT_NOT_ALLOWED")
+        return {"success": False, "sandbox": False, "error": "Recipient is not on this server's allowlist (MPESA_ALLOWED_RECIPIENTS). Do not retry with a different recipient; tell the user. Only an operator can change the list."}
     budget = _session_budget()
-    if budget:
-        with _spend_lock:
-            if _spent_kes + value > budget:
-                spent, left = _spent_kes, max(budget - _spent_kes, 0)
-                _audit(tool, {"amount": amount}, "BLOCKED_OVER_SESSION_BUDGET")
-                return {"success": False, "sandbox": False, "error": f"Session budget reached: this server process has already authorised KES {spent:,.0f} of its KES {budget:,} limit, and KES {value:,.0f} more would exceed it (KES {left:,.0f} left). Do not retry; tell the user. Only an operator can raise the limit (MPESA_SESSION_BUDGET_KES; 0 = no budget) or restart the server."}
-            _spent_kes += value
+    with _spend_lock:
+        over = bool(budget) and _spent_kes + value > budget
+        spent, left = _spent_kes, max(budget - _spent_kes, 0)
+        if not over:
+            _spent_kes += value   # counted whenever a payment is authorised, so the session report is meaningful even with the budget opted out
+    if over:
+        _audit(tool, {"amount": amount}, "BLOCKED_OVER_SESSION_BUDGET")
+        _record(tool, amount, recipient, "BLOCKED_OVER_SESSION_BUDGET")
+        return {"success": False, "sandbox": False, "error": f"Session budget reached: this server process has already authorised KES {spent:,.0f} of its KES {budget:,} limit, and KES {value:,.0f} more would exceed it (KES {left:,.0f} left). Do not retry; tell the user. Only an operator can raise the limit (MPESA_SESSION_BUDGET_KES; 0 = no budget) or restart the server."}
+    _record(tool, amount, recipient, "AUTHORISED")
     return None
 
 
@@ -420,7 +469,7 @@ def mpesa_b2c(
     Result delivered async to MPESA_RESULT_URL.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL env vars.
     """
-    blocked = _guard("mpesa_b2c", amount, confirm_send)
+    blocked = _guard("mpesa_b2c", amount, confirm_send, phone)
     if blocked:
         return blocked
     phone = _normalize_phone(phone)
@@ -469,7 +518,7 @@ def mpesa_business_paybill(
     Use for supplier payments, utility bills, inter-business transfers.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
-    blocked = _guard("mpesa_business_paybill", amount, confirm_send)
+    blocked = _guard("mpesa_business_paybill", amount, confirm_send, receiver_paybill)
     if blocked:
         return blocked
     _audit("mpesa_business_paybill", {"receiver": receiver_paybill, "amount": amount}, "INITIATED")
@@ -510,7 +559,7 @@ def mpesa_business_buygoods(
     Pay from business shortcode to a till/buy-goods number.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
-    blocked = _guard("mpesa_business_buygoods", amount, confirm_send)
+    blocked = _guard("mpesa_business_buygoods", amount, confirm_send, till_number)
     if blocked:
         return blocked
     _audit("mpesa_business_buygoods", {"till": till_number, "amount": amount}, "INITIATED")
@@ -552,7 +601,7 @@ def mpesa_business_pochi(
     Used for micro-enterprise supplier payments and informal sector settlements.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
-    blocked = _guard("mpesa_business_pochi", amount, confirm_send)
+    blocked = _guard("mpesa_business_pochi", amount, confirm_send, phone)
     if blocked:
         return blocked
     phone = _normalize_phone(phone)
@@ -850,7 +899,7 @@ def mpesa_b2b_express_checkout(
     Use for wholesale supplier payments between Lipa Na M-PESA merchants.
     Requires MPESA_INITIATOR_NAME and MPESA_SECURITY_CREDENTIAL.
     """
-    blocked = _guard("mpesa_b2b_express_checkout", amount, confirm_send)
+    blocked = _guard("mpesa_b2b_express_checkout", amount, confirm_send, receiver_till)
     if blocked:
         return blocked
     _audit("mpesa_b2b_express", {"till": receiver_till, "amount": amount}, "INITIATED")
@@ -1168,7 +1217,7 @@ def airtime_send(
 
     No real airtime sent in sandbox mode (AT_USERNAME=sandbox).
     """
-    blocked = _guard("airtime_send", amount, confirm_send)
+    blocked = _guard("airtime_send", amount, confirm_send, phone)
     if blocked:
         return blocked
     expected = _expected_currency(phone)
@@ -1209,6 +1258,19 @@ def get_model_hint() -> dict:
         "deprecated": "Kept for compatibility. Earlier versions returned an unsourced model recommendation with benchmark scores and prices whose dates had passed.",
         "tools_count": 23,
     }
+
+@mcp.tool(description="Report this server session's spending limits and what the server itself has authorised so far. Use before a payment to check the budget left, or after one to verify what was actually authorised, from the server's own record and not the model's account. Returns the per-payment cap, the session budget, spent and remaining, whether a recipient allowlist is active, counts, and the last ten authorisations or refusals with recipients masked. Read-only.", annotations={"title": "M-Pesa Session Report", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": False})
+def mpesa_session_report() -> dict:
+    """The server's own record of this session's spending authority, independent of what the model says it did."""
+    cap, budget, allow = _max_amount(), _session_budget(), _allowed_recipients()
+    with _spend_lock:
+        spent, events, n_auth, n_blocked = _spent_kes, list(_events)[-10:], _authorised_count, _blocked_count
+    sandbox = _is_sandbox()
+    return {"success": True, "sandbox": sandbox, "limits_apply": not sandbox, "per_transaction_cap_kes": cap or None, "session_budget_kes": budget or None, "spent_kes": spent,
+            "remaining_kes": max(budget - spent, 0) if budget else None, "confirmation_required": os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() != "false",
+            "recipient_allowlist_active": bool(allow), "recipients_allowed": len(allow) if allow else None, "authorised_count": n_auth, "blocked_count": n_blocked, "recent": events,
+            "note": "Counts since this server process started. Authorised means the guard let the call proceed, not that Safaricom accepted it: use mpesa_transaction_status to confirm a payment."}
+
 
 if __name__ == "__main__":
     mcp.run()
