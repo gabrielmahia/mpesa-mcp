@@ -252,7 +252,7 @@ def _record(tool: str, amount, recipient, outcome: str) -> None:
     """Add to the server's own record (takes the lock itself). Recipients are stored masked."""
     global _authorised_count, _blocked_count
     with _spend_lock:
-        _events.append({"time": datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds"), "tool": tool, "amount": amount, "recipient": _mask_recipient(recipient) if recipient is not None else None, "outcome": outcome})
+        _events.append({"time": datetime.datetime.now(datetime.UTC).isoformat(timespec="seconds"), "tool": tool, "amount": amount, "recipient": _mask_recipient(recipient) if recipient is not None else None, "outcome": outcome})
         if outcome == "AUTHORISED":
             _authorised_count += 1
         else:
