@@ -1,5 +1,8 @@
 # Changelog — mpesa-mcp
 
+## 0.5.1
+- Dropped Python 3.10, which reached end of life in October 2026: this release requires Python 3.11 or later.
+
 ## 0.5.0
 - **The person, not the model, confirms each payment.** In live mode the eight money-out tools now ask the human, through the MCP client, to approve the exact payment (recipient shown in full, amount, reference) before anything runs. It uses MCP elicitation in both protocol eras: the 2026-07-28 multi-round-trip pattern, where the approval is bound to the exact call (a digest of the tool and arguments travels in the sealed request state), single-use and expires after five minutes; and `Context.elicit` for older clients. A model's `confirm_send=true` is no longer enough where the client can prompt. Payments the server would refuse anyway (cap, budget, allowlist) never prompt. `MPESA_CONFIRM_MODE`: `auto` (default; falls back to the `confirm_send` parameter when the client cannot answer), `elicit` (strict: refuses when it cannot), `param` (the old behaviour). The sandbox and `MPESA_REQUIRE_CONFIRMATION=false` are never prompted.
 - **Behaviour changes** (the package has no known users yet, so these are made now): the default per-payment cap is **20,000 KES** (was 100,000) and the default session budget **50,000 KES** (was 300,000), in line with the small caps assistant-driven payments start at elsewhere; set `MPESA_MAX_AMOUNT_KES` and `MPESA_SESSION_BUDGET_KES` to raise them. Clients that support elicitation now see a prompt for every money-out call. The minimum FastMCP is now 4.1.4.
