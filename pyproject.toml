@@ -4,14 +4,13 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mpesa-mcp"
-version = "0.5.0"
+version = "0.5.1"
 description = "MCP server for the M-Pesa Daraja API and Africa's Talking: 23 tools, sandbox by default; in live mode money-moving and SMS tools need explicit confirmation and are capped."
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
@@ -29,7 +28,7 @@ keywords = [
     "daraja", "africastalking", "kenya", "africa", "fintech", "payments", "sms",
     "qr-code", "standing-orders", "bill-manager", "sim-swap", "kra", "east-africa"
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "fastmcp>=4.1.4",
     "africastalking>=2.0.0",
@@ -56,7 +55,7 @@ where = ["src"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
