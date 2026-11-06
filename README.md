@@ -10,12 +10,11 @@ Give your AI agent the ability to trigger M-Pesa payments, check transaction sta
 [![PyPI](https://img.shields.io/pypi/v/mpesa-mcp)](https://pypi.org/project/mpesa-mcp/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Glama Score](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/score.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
-[![smithery badge](https://smithery.ai/badge/@gabrielmahia/mpesa-mcp)](https://smithery.ai/server/@gabrielmahia/mpesa-mcp)
+
 [![Glama](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badge)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 [![NSA CSI guidance: self-assessed](https://img.shields.io/badge/NSA%20CSI%20U%2FOO%2F6030316--26-self--assessed%2C%20not%20certified-lightgrey)](https://www.nsa.gov/Portals/75/documents/Cybersecurity/CSI_MCP_SECURITY.pdf)
 
 [![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
-
 
 ## Models
 This server does not recommend, certify or benchmark any model, and `get_model_hint()` is kept only for compatibility (it returns neutral guidance). Use a model that follows tool schemas reliably, rehearse in the sandbox first, and keep a person approving every money-moving or messaging call: in live mode those tools need `confirm_send=true` and are capped (`MPESA_MAX_AMOUNT_KES`, default KES 100,000; `MPESA_MAX_SMS_RECIPIENTS`, default 50).
@@ -45,15 +44,12 @@ cannot trigger an M-Pesa payment or send a Kiswahili SMS without custom integrat
 - **M-Pesa:** Kenya (Safaricom Daraja v3) — STK Push, C2B, transaction status
 - **SMS/Airtime:** Kenya, Nigeria, Ghana, Tanzania, Uganda, Rwanda, South Africa, and 15+ more via Africa's Talking
 
-
 ## Glama (hosted MCP)
 
 mpesa-mcp is available as a hosted MCP server on [Glama](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp):
 
 [![mpesa-mcp MCP server](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
 [![mpesa-mcp score](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp/badges/score.svg)](https://glama.ai/mcp/servers/gabrielmahia/mpesa-mcp)
-
-
 
 ## Security: how this maps to the NSA's MCP guidance (self-assessed, not certified)
 
@@ -213,7 +209,6 @@ pytest tests/test_boundary_amounts.py  # min/max amount edge cases
 
 Write operations (STK push, SMS, airtime) have explicit validation before any API call is made.
 
-
 ## Ecosystem context — Mojaloop + MCP
 
 **Mojaloop** (funded by the Gates Foundation) handles payment *interoperability* — connecting banks, mobile money wallets, and merchants across DFSPs in East Africa and beyond.
@@ -254,7 +249,6 @@ pytest tests/ -v
 Do not commit API keys. Use environment variables or a secrets manager.  
 Report vulnerabilities to: contact@aikungfu.dev
 
-
 ## Research Context
 
 **Swahili and translation** (arXiv:2509.04516, 2025): in a small news-classification experiment, a Swahili-native BERT model made 0.36% errors against 1.47% for an English model applied to machine-translated Swahili, so native beat translate-then-classify on that task. This server's tool descriptions are written so they can be read in Swahili as well as English; no effect of that has been measured here.
@@ -272,11 +266,9 @@ Report vulnerabilities to: contact@aikungfu.dev
 
 [MIT](https://creativecommons.org/licenses/by-nc-nd/4.0/) — © 2026 Gabriel Mahia
 
-
 ## Stay updated
 
 Get notified of new releases and East African API developments:
-**[Subscribe to updates →](https://buttondown.com/gabrielmahia)**
 
 Or watch this repo on GitHub for release notifications.
 ## Sibling packages
