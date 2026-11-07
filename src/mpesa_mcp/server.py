@@ -41,6 +41,7 @@ Tools — Africa's Talking:
 """
 
 import base64
+import calendar
 import contextvars
 import datetime
 import functools
@@ -476,6 +477,106 @@ def mpesa_stk_query(
     rc = int(data.get("ResultCode", -1))
     status_map = {0: "SUCCESS", 1: "INSUFFICIENT_FUNDS", 1001: "LOCKED", 1019: "EXPIRED", 1032: "CANCELLED_BY_USER", 1037: "TIMEOUT", 2001: "WRONG_PIN"}
     return {"success": rc == 0, "result_code": rc, "status": status_map.get(rc, f"UNKNOWN({rc})"), "description": data.get("ResultDesc")}
+
+
+# ── M-PESA RATIBA (standing orders) ──────────────────────────────────────────
+# Daraja: POST /standingorder/v1/createStandingOrderExternal. A collection, like STK Push: the CUSTOMER approves on their own phone with
+# their PIN (Safaricom opts them in and creates the order), so no money leaves the business account and the money-out guard does not apply.
+# Because it debits the customer repeatedly, every answer spells out the schedule and the total commitment.
+RATIBA_FREQUENCIES = {"one_off": ("1", None), "daily": ("2", ("days", 1)), "weekly": ("3", ("days", 7)), "monthly": ("4", ("months", 1)),
+                      "bi_monthly": ("5", None), "quarterly": ("6", ("months", 3)), "half_year": ("7", ("months", 6)), "yearly": ("8", ("months", 12))}
+RATIBA_RECEIVERS = {"paybill": ("Standing Order Customer Pay Bill", "4"), "till": ("Standing Order Customer Pay Marchant", "2")}  # Safaricom's spelling
+
+
+def _ratiba_date(raw: str) -> datetime.date:
+    text = str(raw).strip().replace("-", "")
+    if not re.fullmatch(r"\d{8}", text):
+        raise ValueError(f"date {raw!r} must be YYYY-MM-DD or YYYYMMDD")
+    return datetime.datetime.strptime(text, "%Y%m%d").date()
+
+
+def _add_months(d: datetime.date, n: int) -> datetime.date:
+    y, m = divmod(d.month - 1 + n, 12)
+    year, month = d.year + y, m + 1
+    return d.replace(year=year, month=month, day=min(d.day, calendar.monthrange(year, month)[1]))
+
+
+def _ratiba_payments(start: datetime.date, end: datetime.date, frequency: str):
+    """How many debits the schedule makes, or None where Safaricom's definition is ambiguous (Bi-Monthly)."""
+    if frequency == "one_off":
+        return 1
+    step = RATIBA_FREQUENCIES[frequency][1]
+    if step is None:
+        return None
+    count, k, d = 0, 0, start
+    while d <= end and count < 100_000:
+        count += 1
+        k += 1
+        d = start + datetime.timedelta(days=step[1] * k) if step[0] == "days" else _add_months(start, step[1] * k)
+    return count
+
+
+@mcp.tool(description="Create an M-PESA Ratiba standing order: a recurring payment from a customer's M-PESA to your paybill or till (subscriptions, loan or SACCO repayments, school fees). Use when a customer has agreed to pay the same amount on a schedule. Safaricom sends the customer a PIN prompt; nothing is created until they approve on their phone, and the final result arrives at the callback URL. Returns success (the request was ACCEPTED, not yet approved), the response reference, and the schedule: frequency, dates, number of payments and total commitment in KES (null where Safaricom's frequency is ambiguous). Ratiba is a commercial Daraja API: live use needs Safaricom's go-live agreement. In live mode it prompts a real phone.", annotations={"title": "M-Pesa Ratiba (standing order)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@_terminal_audit("mpesa_ratiba_create")
+def mpesa_ratiba_create(
+    phone: Annotated[str, "Customer phone that pays, any Kenyan format (+254..., 07..., 254...)"],
+    amount: Annotated[int, "Amount in KES taken on EACH payment (whole number, 1 to 150000)"],
+    standing_order_name: Annotated[str, "Name of the standing order; must be unique for this customer (Safaricom rejects a repeat), 1 to 60 characters"],
+    start_date: Annotated[str, "First payment date, YYYY-MM-DD or YYYYMMDD; today or later"],
+    end_date: Annotated[str, "Last date the order may run, YYYY-MM-DD or YYYYMMDD; on or after the start date"],
+    account_ref: Annotated[str, "Account reference the customer sees, e.g. a loan or member number (1 to 12 characters)"],
+    frequency: Annotated[str, "How often: one_off, daily, weekly, monthly, bi_monthly, quarterly, half_year or yearly; Safaricom's codes 1 to 8 are also accepted"] = "monthly",
+    receiver_type: Annotated[str, "Where the money goes: paybill (your MPESA_SHORTCODE as a PayBill) or till (as a Buy Goods till)"] = "paybill",
+    description: Annotated[str, "Short description; Safaricom keeps the first 13 characters"] = "Standing order",
+) -> dict:
+    freq = (frequency or "").strip().lower().replace("-", "_").replace(" ", "_")
+    freq = {code: name for name, (code, _) in RATIBA_FREQUENCIES.items()}.get(freq, freq)  # Safaricom codes "1".."8", as the earlier version took
+    recv = (receiver_type or "").strip().lower()
+    try:
+        if freq not in RATIBA_FREQUENCIES:
+            raise ValueError(f"frequency must be one of {sorted(RATIBA_FREQUENCIES)}")
+        if recv not in RATIBA_RECEIVERS:
+            raise ValueError("receiver_type must be paybill or till")
+        if not isinstance(amount, int) or not 1 <= amount <= 150_000:
+            raise ValueError(f"amount {amount} must be a whole number from 1 to 150000")
+        name = (standing_order_name or "").strip()
+        if not 1 <= len(name) <= 60:
+            raise ValueError("standing_order_name must be 1 to 60 characters")
+        if not 1 <= len(account_ref or "") <= 12:
+            raise ValueError("account_ref must be 1 to 12 characters (Safaricom's limit)")
+        start, end = _ratiba_date(start_date), _ratiba_date(end_date)
+        if start < datetime.date.today():
+            raise ValueError("start_date is in the past")
+        if end < start:
+            raise ValueError("end_date is before start_date")
+    except ValueError as e:
+        return {"success": False, "error": str(e)}
+    payments = _ratiba_payments(start, end, freq)
+    schedule = {"frequency": freq, "amount_kes_each": amount, "start_date": start.isoformat(), "end_date": end.isoformat(), "payments": payments,
+                "total_commitment_kes": amount * payments if payments is not None else None,
+                "note": "Safaricom's 'Bi-Monthly' is not defined precisely in its documentation, so no count or total is given; confirm with Safaricom before relying on it." if payments is None else "The number of payments is computed from the dates; Safaricom's own schedule is authoritative."}
+    shortcode = _env("MPESA_SHORTCODE")
+    phone = _normalize_phone(phone)
+    tx_type, receiver_code = RATIBA_RECEIVERS[recv]
+    _audit("mpesa_ratiba_create", {"phone": phone, "amount": amount, "frequency": freq}, "INITIATED")
+    token = _get_mpesa_token()
+    resp = requests.post(
+        f"{_mpesa_base()}/standingorder/v1/createStandingOrderExternal",
+        json={"StandingOrderName": name, "StartDate": start.strftime("%Y%m%d"), "EndDate": end.strftime("%Y%m%d"), "BusinessShortCode": shortcode,
+              "TransactionType": tx_type, "ReceiverPartyIdentifierType": receiver_code, "Amount": str(amount), "PartyA": phone, "CallBackURL": _callback(),
+              "AccountReference": account_ref, "TransactionDesc": (description or "")[:13], "Frequency": RATIBA_FREQUENCIES[freq][0]},
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=15,
+    )
+    resp.raise_for_status()
+    data = resp.json()
+    header = data.get("ResponseHeader") or data.get("responseHeader") or {}
+    code = str(header.get("responseCode", ""))
+    return {"success": code in ("200", "0"), "response_ref_id": header.get("responseRefID"), "response_code": code,
+            "message": header.get("responseDescription") or header.get("ResultDesc"),
+            "next": "The customer must approve the PIN prompt on their phone; the outcome (TransactionID, status) arrives at MPESA_CALLBACK_URL.",
+            "schedule": schedule, "sandbox": os.environ.get("MPESA_SANDBOX", "true").lower() == "true"}
+
 
 
 @mcp.tool(description="Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa B2C", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
@@ -950,64 +1051,6 @@ def mpesa_b2b_express_checkout(
 
 # ── STANDING ORDERS ───────────────────────────────────────────────────────────
 
-@mcp.tool(description="Create an M-PESA Ratiba standing order: automated recurring payments collected from a customer's phone. Use when a customer wants to pay a regular amount. The customer must approve on their handset; confirm the amount, dates and customer with the user first, since this creates a recurring commitment. frequency 1 one-off, 2 daily, 3 weekly, 4 monthly (default), 5 bi-monthly, 6 quarterly, 7 half-year, 8 annually. Returns success, standing_order_id, response code, message and frequency_label.", annotations={"title": "M-PESA Ratiba — Create Standing Order", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
-@_terminal_audit("mpesa_ratiba_create")
-def mpesa_ratiba_create(
-    standing_order_name: Annotated[str, "Name for the standing order"],
-    start_date: Annotated[str, "Start date YYYYMMDD"],
-    end_date: Annotated[str, "End date YYYYMMDD"],
-    phone: Annotated[str, "Customer phone number"],
-    amount: Annotated[int, "Amount in KES per payment"],
-    account_ref: Annotated[str, "Account reference for each payment"],
-    frequency: Annotated[str, "1=One-Off 2=Daily 3=Weekly 4=Monthly 5=Bi-Monthly 6=Quarterly 7=Half-Year 8=Annually"] = "4",
-    description: Annotated[str, "Standing order description"] = "Standing order via mpesa-mcp",
-) -> dict:
-    """
-    Create an M-PESA Ratiba standing order — automated recurring payments.
-    Customer authorizes once; payments happen automatically on schedule.
-    Perfect for subscription billing, rent collection, loan repayments, SACCO contributions.
-    Returns a standing order ID to manage/cancel later.
-    """
-    phone = _normalize_phone(phone)
-    _audit("mpesa_ratiba_create", {"phone": phone, "amount": amount, "frequency": frequency}, "INITIATED")
-    shortcode = _env("MPESA_SHORTCODE")
-    passkey = _env("MPESA_PASSKEY")
-    ts = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
-    token = _get_mpesa_token()
-    resp = requests.post(
-        f"{_mpesa_base()}/v1/ratiba/create",
-        json={
-            "StandingOrderName": standing_order_name,
-            "StartDate": start_date,
-            "EndDate": end_date,
-            "BusinessShortCode": shortcode,
-            "TransactionType": "Standing Order Customer Pay Bill",
-            "ReceiverPartyIdentifierType": "4",
-            "Amount": amount,
-            "PartyA": phone,
-            "PartyB": shortcode,
-            "AccountReference": account_ref,
-            "TransactionDesc": description[:13],
-            "Frequency": frequency,
-            "CallBackURL": _callback(),
-            "Password": _stk_password(shortcode, passkey, ts),
-            "Timestamp": ts,
-        },
-        headers={"Authorization": f"Bearer {token}"},
-        timeout=15,
-    )
-    resp.raise_for_status()
-    data = resp.json()
-    return {
-        "success": data.get("ResponseCode") == "0",
-        "standing_order_id": data.get("StandingOrderId", data.get("CheckoutRequestID")),
-        "response_code": data.get("ResponseCode"),
-        "message": data.get("CustomerMessage", data.get("ResponseDescription")),
-        "frequency_label": {"1": "One-Off", "2": "Daily", "3": "Weekly", "4": "Monthly", "5": "Bi-Monthly", "6": "Quarterly", "7": "Half-Year", "8": "Annually"}.get(frequency, frequency),
-    }
-
-
-# ── BILL MANAGER ─────────────────────────────────────────────────────────────
 
 @mcp.tool(description="Enrol your business in M-PESA Bill Manager, a one-time setup for sending invoices with payment links. Use before creating invoices. Takes the notification email and an optional logo and callback URL. Returns the Daraja response. Changes your Bill Manager registration.", annotations={"title": "Bill Manager — Opt In", "readOnlyHint": False, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_bill_manager_optin(

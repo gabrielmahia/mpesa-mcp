@@ -1,5 +1,16 @@
 # Changelog — mpesa-mcp
 
+## 0.6.0 (2026-11-07)
+
+### Fixed
+- `mpesa_ratiba_create` called an endpoint Daraja does not have (`/v1/ratiba/create`) and sent STK Push fields (Password, Timestamp, PartyB) that Ratiba does not use, so it could not have worked against real Daraja. It now follows Safaricom's documented M-Pesa Ratiba API (`POST /standingorder/v1/createStandingOrderExternal`).
+
+### Changed
+- Every documented field is validated before any request (dates, start not in the past, end after start, amount 1 to 150000, account reference up to 12 characters, frequency, receiver type).
+- New `receiver_type` (`paybill` or `till`); frequency accepts names (`monthly`) as well as Safaricom's codes (`"4"`), still defaulting to monthly.
+- The answer spells out the schedule: number of payments and total commitment in KES (null for Safaricom's ambiguous 'Bi-Monthly'), and says the customer still has to approve the PIN prompt.
+- Ratiba is a commercial Daraja API: live use needs Safaricom's go-live agreement.
+
 ## 0.5.1
 - Dropped Python 3.10, which reached end of life in October 2026: this release requires Python 3.11 or later.
 

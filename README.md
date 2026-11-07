@@ -35,6 +35,7 @@ cannot trigger an M-Pesa payment or send a Kiswahili SMS without custom integrat
 |---|---|
 | `mpesa_stk_push` | Trigger STK Push payment prompt on customer's M-Pesa phone |
 | `mpesa_stk_query` | Check status of an STK Push request |
+| `mpesa_ratiba_create` | Create an M-Pesa Ratiba standing order (recurring payment the customer approves by PIN); returns the schedule and total commitment |
 | `mpesa_transaction_status` | Query any M-Pesa transaction by receipt number |
 | `sms_send` | Send SMS to 1–1,000 recipients across African networks |
 | `airtime_send` | Send airtime top-up to any subscriber (KES, NGN, GHS, UGX, etc.) |
@@ -180,6 +181,7 @@ All tools declare [MCP tool annotations](https://spec.modelcontextprotocol.io/sp
 |------|----------|-------------|------------|
 | `mpesa_stk_push` | ❌ | ✅ | ❌ |
 | `mpesa_stk_query` | ✅ | ❌ | ✅ |
+| `mpesa_ratiba_create` | ❌ | ✅ | ❌ |
 | `mpesa_transaction_status` | ✅ | ❌ | ✅ |
 | `sms_send` | ❌ | ✅ | ❌ |
 | `airtime_send` | ❌ | ✅ | ❌ |
