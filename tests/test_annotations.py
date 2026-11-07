@@ -15,4 +15,4 @@ def test_every_tool_declares_that_it_is_read_only():
     assert ts
     for t in ts:
         a = t.annotations
-        assert a is not None and a.readOnlyHint is not None and a.destructiveHint is not None, t.name
+        assert a is not None and a.read_only_hint is not None and a.destructive_hint is not None, t.name
