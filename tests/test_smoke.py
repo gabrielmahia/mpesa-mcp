@@ -20,6 +20,7 @@ def test_tools_registered():
     names = [t.name for t in tools]
     expected = [
         "mpesa_stk_push",
+        "mpesa_ratiba_create",
         "mpesa_stk_query",
         "mpesa_transaction_status",
         "sms_send",
