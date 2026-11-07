@@ -65,11 +65,17 @@ from . import __version__  # noqa: E402
 _log = logging.getLogger("mpesa_mcp")
 
 
+def _audit_hash(value) -> str:
+    """Hash a phone the same way however it was typed (07..., +254..., 254...), so every audit line for one call can be matched."""
+    try:
+        value = _normalize_phone(str(value))
+    except Exception:  # noqa: BLE001 - not a phone we can normalise: hash it as given
+        pass
+    return hashlib.sha256(str(value).encode()).hexdigest()[:8] + "..."
+
+
 def _audit(tool, params, outcome):
-    safe = {
-        k: (hashlib.sha256(str(v).encode()).hexdigest()[:8] + "..." if k in {"phone", "party_a", "party_b", "phone_number"} else str(v))
-        for k, v in params.items()
-    }
+    safe = {k: (_audit_hash(v) if k in {"phone", "party_a", "party_b", "phone_number"} else str(v)) for k, v in params.items()}
     _log.info("TOOL=%s PARAMS=%s OUTCOME=%s", tool, safe, outcome)
     if outcome == "INITIATED":
         _initiated.set(True)

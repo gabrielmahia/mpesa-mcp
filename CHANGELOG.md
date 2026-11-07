@@ -1,5 +1,10 @@
 # Changelog — mpesa-mcp
 
+## 0.6.1 (2026-11-07)
+
+### Fixed
+- Audit trail: the INITIATED line hashed the normalised phone and the closing line the phone as typed, so the two lines of one call could not be matched. Phones are now normalised before hashing in every line.
+
 ## 0.6.0 (2026-11-07)
 
 ### Fixed
