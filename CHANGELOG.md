@@ -1,6 +1,6 @@
 # Changelog — mpesa-mcp
 
-## Unreleased (0.7.0)
+## 0.7.0 (2026-11-08)
 
 ### Security
 - **Human confirmation now fails closed by default.** `MPESA_CONFIRM_MODE` defaults to `elicit`: in live mode, a money-out call from a client that cannot ask the person is refused, even with `confirm_send=true`. Previously the default `auto` fell back to `confirm_send`, which the same model supplies, so a client without elicitation let the model approve its own payments (reproduced on 2026-11-08 with live mode on and Daraja mocked: the payment request was sent). `auto` and `param` remain available as explicit opt-ins; unknown values are treated as strict.
