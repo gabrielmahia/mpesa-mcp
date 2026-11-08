@@ -12,7 +12,7 @@ authors:
 repository-code: "https://github.com/gabrielmahia/mpesa-mcp"
 url: "https://aikungfu.dev"
 license: "MIT"
-version: "0.6.1"
+version: "0.7.0"
 date-released: "2026-01-01"
 keywords:
   - kenya
