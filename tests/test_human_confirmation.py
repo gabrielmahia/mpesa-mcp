@@ -80,7 +80,8 @@ def test_a_person_who_declines_or_cancels_stops_the_payment_even_if_the_model_sa
     assert rep["spent_kes"] == 0 and rep["blocked_count"] == 1 and rep["recent"][-1]["outcome"] == "BLOCKED_DECLINED_BY_HUMAN"
 
 
-def test_a_client_that_cannot_answer_falls_back_to_the_confirm_parameter_in_auto_mode(net):
+def test_a_client_that_cannot_answer_falls_back_to_the_confirm_parameter_in_auto_mode(net, monkeypatch):
+    monkeypatch.setenv("MPESA_CONFIRM_MODE", "auto")
     assert "Confirmation required" in text(call("mpesa_b2c", dict(PAY)))
     assert not net
     call("mpesa_b2c", dict(PAY, confirm_send=True))
@@ -273,3 +274,16 @@ def test_modern_era_anything_but_a_yes_stops_the_payment(live, reply):
     state = confirm.make_state("mpesa_b2c", PAY)
     out, seen, asked = _modern(PAY, reply, state)
     assert not seen and not asked and out != "RAN"
+
+
+def test_by_default_a_client_that_cannot_answer_cannot_pay_even_with_the_parameter(net, monkeypatch):
+    """The model supplies confirm_send itself, so by default it is not enough: without a person's answer, nothing is sent (fail closed)."""
+    monkeypatch.delenv("MPESA_CONFIRM_MODE", raising=False)
+    assert "cannot show a confirmation prompt" in text(call("mpesa_b2c", dict(PAY, confirm_send=True)))
+    assert not net
+
+
+def test_an_unknown_mode_is_treated_as_strict(net, monkeypatch):
+    monkeypatch.setenv("MPESA_CONFIRM_MODE", "permissive")
+    assert "cannot show a confirmation prompt" in text(call("mpesa_b2c", dict(PAY, confirm_send=True)))
+    assert not net

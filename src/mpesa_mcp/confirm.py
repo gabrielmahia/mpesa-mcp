@@ -8,7 +8,8 @@ a guarded tool runs, and sets `confirm_send` itself only after they say yes. It 
   different payment or for repeated payments.
 * Older eras: `Context.elicit` asks inside the same call.
 
-MPESA_CONFIRM_MODE: `auto` (default: ask when the client can answer, otherwise fall back to the `confirm_send` parameter), `elicit` (strict: refuse when the client cannot answer) or
+MPESA_CONFIRM_MODE: `elicit` (default, strict: refuse when the client cannot answer), `auto` (opt-in: ask when the client can
+answer, otherwise fall back to the `confirm_send` parameter, which the same model supplies, so it is not an independent check) or
 `param` (the old behaviour: the parameter only). The sandbox, and MPESA_REQUIRE_CONFIRMATION=false, are never prompted.
 """
 from __future__ import annotations
@@ -37,8 +38,10 @@ _consumed_lock = threading.Lock()
 
 
 def confirm_mode() -> str:
-    raw = os.environ.get("MPESA_CONFIRM_MODE", "auto").strip().lower()
-    return raw if raw in ("auto", "elicit", "param") else "auto"
+    # Default is strict (fail closed): without a client that can ask the person, a money-out call is refused rather than trusting
+    # confirm_send, which the same model supplies. `auto` and `param` remain available as explicit opt-ins. Unknown values are strict too.
+    raw = os.environ.get("MPESA_CONFIRM_MODE", "elicit").strip().lower()
+    return raw if raw in ("auto", "elicit", "param") else "elicit"
 
 
 def _digest(tool: str, args: dict) -> str:
