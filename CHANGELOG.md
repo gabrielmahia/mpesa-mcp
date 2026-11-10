@@ -1,5 +1,10 @@
 # Changelog — mpesa-mcp
 
+## Unreleased
+
+### Documentation (the text models and registries read)
+- Nine tool descriptions (and `glama.json`, which mirrors them) still said live tools "need `confirm_send=true`" with a default cap of KES 100,000. They now say what ships: the person approves each payment, SMS or top-up through the client (clients that cannot prompt are refused by default; `confirm_send` is only the fallback in the opt-in `param` and `auto` modes) and the default cap is KES 20,000 per payment. `sms_send` no longer claims "up to 1,000 recipients" (the per-call cap defaults to 50), in its description, `glama.json` and the README table. Two stale code comments corrected. No behaviour change.
+
 ## 0.7.2 (2026-11-10)
 
 ### Documentation (corrects safety text on the PyPI page)
