@@ -1,5 +1,10 @@
 # Changelog — mpesa-mcp
 
+## 0.7.4 (2026-11-10)
+
+### Security
+- Raised the minimum versions of dependencies whose older releases have known vulnerabilities: requests>=2.33.0. Found by an OSV audit of the declared floors: at the previous floors pip would keep an already-installed vulnerable `fastmcp`, `requests`, `pydantic` or `python-dotenv`. All 33 servers were installed with these dependencies pinned at the new floors and expose exactly the same tools; no code change.
+
 ## 0.7.3 (2026-11-10)
 
 ### Documentation (the text models and registries read)
