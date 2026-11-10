@@ -239,6 +239,16 @@
     {
       "name": "get_model_hint",
       "description": "Returns neutral guidance on choosing a model for these tools; no model is recommended and no benchmark or pricing claims are made. Use when someone asks which model to pair with this server. Takes no arguments. Returns a null recommendation, guidance, a deprecation note and the tool count (23). Read-only."
+    },
+    {
+      "name": "mpesa_session_report",
+      "description": "Report this server session's spending limits and what the server itself has authorised so far. Use before a payment to check the budget left, or after one to verify what was actually authorised, from the server's own record and not the model's account. Returns the per-payment cap, the session budget, spent and remaining, whether a recipient allowlist is active, counts, and the last ten authorisations or refusals with recipients masked. Read-only.",
+      "annotations": {
+        "readOnlyHint": true,
+        "destructiveHint": false,
+        "idempotentHint": true,
+        "openWorldHint": false
+      }
     }
   ],
   "repository": {
