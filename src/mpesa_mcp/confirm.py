@@ -30,6 +30,9 @@ from fastmcp.tools.base import InputRequiredToolResult, ToolResult
 # Every tool that calls the guard, and the parameter that names who is paid (None: no free recipient). A test pins this set to the source.
 GUARDED = {"mpesa_b2c": "phone", "mpesa_business_paybill": "receiver_paybill", "mpesa_business_buygoods": "till_number", "mpesa_business_pochi": "phone",
            "mpesa_b2b_express_checkout": "receiver_till", "airtime_send": "phone", "mpesa_reversal": None, "mpesa_tax_remittance": None}
+# Tools that message real people. They cost money and can be used to spam or phish in the operator's name, so in live mode they get the same
+# independent human approval as a payment (the model-supplied confirm_send alone is not an independent check).
+SMS_TOOLS = ("sms_send",)
 CONFIRM_KEY = "mpesa_confirm"
 APPROVAL_TTL_SECONDS = 300
 _REFERENCE_PARAMS = ("account_reference", "remarks", "occasion", "transaction_id")
@@ -72,8 +75,22 @@ def state_is_valid_and_consume(state, tool: str, args: dict, now: float | None =
     return True
 
 
+def _describe_sms(args: dict) -> str:
+    """What the person is shown for an SMS: the full message and the recipients (the first ten, then the count), because approving blind defeats the check."""
+    recipients = list(args.get("recipients") or [])
+    shown = ", ".join(str(r) for r in recipients[:10]) + (f" and {len(recipients) - 10} more" if len(recipients) > 10 else "")
+    message = str(args.get("message", ""))
+    lines = ["Approve sending this SMS from your Africa's Talking account?", "", "Tool: sms_send", f"To {len(recipients)} recipient(s): {shown}"]
+    if args.get("sender_id"):
+        lines.append(f"Sender ID: {args['sender_id']}")
+    lines += ["Message:", message if len(message) <= 600 else message[:600] + " [...]", "", "Approve only if you asked for exactly this message to exactly these people."]
+    return "\n".join(lines)
+
+
 def describe(tool: str, args: dict) -> str:
     """What the person is shown. The recipient is shown in full: the person approving is the operator, and masking would defeat the check."""
+    if tool in SMS_TOOLS:
+        return _describe_sms(args)
     from . import server as s
     param = GUARDED[tool]
     lines = ["Approve this payment from your M-PESA account?", "", f"Tool: {tool}"]
@@ -114,6 +131,9 @@ def _is_modern(ctx) -> bool:
 
 
 def _refuse(s, tool, args, param, code, message) -> ToolResult:
+    if tool in SMS_TOOLS:   # no amount to record: audit the refusal with the recipient count (the session ledger is for payments)
+        s._audit(tool, {"recipients": len(args.get("recipients") or [])}, code)
+        return _result(s._refusal(code, message))
     s._audit(tool, {"amount": args.get("amount")}, code)
     s._record(tool, args.get("amount"), args.get(param) if param else None, code)
     return _result(s._refusal(code, message))
@@ -124,29 +144,37 @@ class HumanConfirmation(Middleware):
         from . import server as s
         tool = context.message.name
         mode = confirm_mode()
-        if tool not in GUARDED or mode == "param" or s._is_sandbox() or os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() == "false":
+        sms = tool in SMS_TOOLS
+        if (tool not in GUARDED and not sms) or mode == "param" or s._is_sandbox() or os.environ.get("MPESA_REQUIRE_CONFIRMATION", "true").lower() == "false":
             return await call_next(context)
         args = dict(context.message.arguments or {})
-        param = GUARDED[tool]
-        early = s._preflight(tool, args.get("amount"), args.get(param) if param else None)
+        param = GUARDED.get(tool)
+        if sms:   # an empty list or one over the per-call cap is refused anyway: do not ask the person to approve it
+            refused = s._guard_sms(args.get("recipients"), True)
+            if refused:
+                return _result(refused)
+            early = None
+        else:
+            early = s._preflight(tool, args.get("amount"), args.get(param) if param else None)
         if early:   # refused anyway: do not ask the person to approve it
             return _refuse(s, tool, args, param, early[0], early[1]["error"])
         ctx = context.fastmcp_context
+        noun = "SMS" if sms else "payment"
         if not _client_can_confirm(ctx):
             if mode == "elicit":
-                return _refuse(s, tool, args, param, "BLOCKED_NO_CONFIRMATION_CHANNEL", "This server requires the person to confirm each payment through the client (MPESA_CONFIRM_MODE=elicit), and this client cannot show a confirmation prompt.")
+                return _refuse(s, tool, args, param, "BLOCKED_NO_CONFIRMATION_CHANNEL", f"This server requires the person to confirm each {noun} through the client (MPESA_CONFIRM_MODE=elicit), and this client cannot show a confirmation prompt.")
             return await call_next(context)   # auto: fall back to the confirm_send parameter
         prompt = describe(tool, args)
         if _is_modern(ctx):
             response = (getattr(ctx, "input_responses", None) or {}).get(CONFIRM_KEY)
             if response is None or not state_is_valid_and_consume(getattr(ctx, "request_state", None), tool, args):
-                schema = {"type": "object", "properties": {"approve": {"type": "boolean", "title": "Approve this payment", "description": "Tick to approve exactly this payment."}}, "required": ["approve"]}
+                schema = {"type": "object", "properties": {"approve": {"type": "boolean", "title": f"Approve this {noun}", "description": f"Tick to approve exactly this {noun}."}}, "required": ["approve"]}
                 return InputRequiredToolResult(mt.InputRequiredResult(input_requests={CONFIRM_KEY: mt.ElicitRequest(params=mt.ElicitRequestFormParams(message=prompt, requested_schema=schema))}, request_state=make_state(tool, args)))
             approved = getattr(response, "action", None) == "accept" and bool((getattr(response, "content", None) or {}).get("approve"))
         else:
             answer = await ctx.elicit(prompt, response_type=bool)
             approved = isinstance(answer, AcceptedElicitation) and answer.data is True
         if not approved:
-            return _refuse(s, tool, args, param, "BLOCKED_DECLINED_BY_HUMAN", "The person declined this payment. Do not retry; ask them what they want.")
+            return _refuse(s, tool, args, param, "BLOCKED_DECLINED_BY_HUMAN", f"The person declined this {noun}. Do not retry; ask them what they want.")
         approved_message = context.message.model_copy(update={"arguments": {**args, "confirm_send": True}})
         return await call_next(context.copy(message=approved_message))
