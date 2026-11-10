@@ -1,6 +1,6 @@
 # Changelog — mpesa-mcp
 
-## Unreleased (0.7.1)
+## 0.7.1 (2026-11-10)
 
 ### Security
 - **`sms_send` now needs the person's approval too.** It was not covered by the human-confirmation middleware: its only live-mode check was the model-supplied `confirm_send`, so (reproduced against the installed 0.7.0 on 2026-11-10, live mode, default settings, a client that cannot prompt, Africa's Talking mocked) a model could message up to 50 people per call, repeatedly, with a message of its choosing. In live mode `sms_send` now goes through the same middleware as a payment: the person sees the full message and the recipients (the first ten, then the count), the approval is bound to that exact message and recipient list, works once and expires after five minutes; an empty or over-cap recipient list is refused without asking. Clients that cannot show a prompt are refused by default (`MPESA_CONFIRM_MODE=elicit`); `auto` and `param` remain explicit opt-ins. The sandbox is never prompted.
