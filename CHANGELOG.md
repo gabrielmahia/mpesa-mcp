@@ -1,6 +1,6 @@
 # Changelog — mpesa-mcp
 
-## Unreleased
+## 0.7.2 (2026-11-10)
 
 ### Documentation (corrects safety text on the PyPI page)
 - The opening paragraph still said live tools "need `confirm_send=true`" with a default cap of KES 100,000. The shipped behaviour is the person's approval through the client (clients that cannot prompt are refused by default) and a default cap of KES 20,000 per payment, 50,000 per session. The "Confirmation" bullet presented the model-supplied flag as the safeguard and the session-budget bullet still said 300,000. Flagged by ChatGPT on 2026-10-29; no code change.
