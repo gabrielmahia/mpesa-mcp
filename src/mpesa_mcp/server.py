@@ -182,7 +182,7 @@ def _get_mpesa_token() -> str:
 
 # ── Bounded authorization for tools that send money OUT ────────────────────────────────────────────────────────────────────────────────
 # A language model can be talked into paying anyone any amount (prompt injection against payment tools is a documented attack on agent payment
-# protocols). In LIVE mode these tools therefore need the user's explicit approval (confirm_send=true) and stay under a per-transaction cap.
+# protocols). In LIVE mode these tools therefore need the person's approval through the client (see confirm.py; confirm_send alone is not an independent check) and stay under a per-transaction cap.
 DEFAULT_LIVE_CAP_KES = 20_000   # lowered from 100,000 in 0.5.0: assistant-driven payments elsewhere (Brazil) start at a few hundred reais
 # The per-transaction cap bounds one payment, not the total: an agent could repeat a capped payment indefinitely. A session budget bounds the TOTAL a server process may
 # authorise (India's UPI Reserve Pay and Alipay's agent-payment thresholds bound the aggregate the same way). Counted when a payment is authorised and never refunded
@@ -200,7 +200,7 @@ def _is_sandbox() -> bool:
 
 
 def _max_amount() -> int:
-    """MPESA_MAX_AMOUNT_KES: per-transaction cap in live mode (default 100,000; 0 or 'none' = no cap, an explicit opt-out)."""
+    """MPESA_MAX_AMOUNT_KES: per-transaction cap in live mode (default 20,000; 0 or 'none' = no cap, an explicit opt-out)."""
     raw = os.environ.get("MPESA_MAX_AMOUNT_KES", "").strip().lower()
     if not raw:
         return DEFAULT_LIVE_CAP_KES
@@ -585,7 +585,7 @@ def mpesa_ratiba_create(
 
 
 
-@mcp.tool(description="Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa B2C", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa B2C", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_b2c")
 def mpesa_b2c(
     phone: Annotated[str, "Recipient phone number (any Kenyan format)"],
@@ -636,7 +636,7 @@ def mpesa_b2c(
     }
 
 
-@mcp.tool(description="Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Pay Bill (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Pay Bill (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_business_paybill")
 def mpesa_business_paybill(
     receiver_paybill: Annotated[str, "Destination paybill shortcode"],
@@ -679,7 +679,7 @@ def mpesa_business_paybill(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription")}
 
 
-@mcp.tool(description="Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Buy Goods (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business Buy Goods (B2B)", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_business_buygoods")
 def mpesa_business_buygoods(
     till_number: Annotated[str, "Destination till number (Buy Goods)"],
@@ -720,7 +720,7 @@ def mpesa_business_buygoods(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "description": data.get("ResponseDescription")}
 
 
-@mcp.tool(description="Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business to Pochi la Biashara", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Business to Pochi la Biashara", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_business_pochi")
 def mpesa_business_pochi(
     phone: Annotated[str, "Pochi wallet owner phone number"],
@@ -889,7 +889,7 @@ def mpesa_pull_transactions(
 
 # ── OPERATIONS ────────────────────────────────────────────────────────────────
 
-@mcp.tool(description="Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa Reversal", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "M-Pesa Reversal", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_reversal")
 def mpesa_reversal(
     transaction_id: Annotated[str, "M-Pesa receipt to reverse e.g. QKL8XXXXXX"],
@@ -973,7 +973,7 @@ def mpesa_dynamic_qr(
     }
 
 
-@mcp.tool(description="Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Tax Remittance to KRA", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "Tax Remittance to KRA", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_tax_remittance")
 def mpesa_tax_remittance(
     amount: Annotated[int, "Tax amount in KES"],
@@ -1016,7 +1016,7 @@ def mpesa_tax_remittance(
     return {"accepted": data.get("ResponseCode") == "0", "conversation_id": data.get("ConversationID"), "kra_shortcode": KRA_SHORTCODE, "prn": account_reference, "description": data.get("ResponseDescription")}
 
 
-@mcp.tool(description="Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "B2B Express Checkout", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.", annotations={"title": "B2B Express Checkout", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("mpesa_b2b_express")
 def mpesa_b2b_express_checkout(
     receiver_till: Annotated[str, "Recipient till number"],
@@ -1220,7 +1220,7 @@ def mpesa_imsi_query(
 
 # ── AFRICA'S TALKING ─────────────────────────────────────────────────────────
 
-@mcp.tool(description="Send an SMS to up to 1,000 recipients through Africa's Talking. Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode it needs confirm_send=true and refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.", annotations={"title": "Send SMS", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send an SMS to a list of recipients through Africa's Talking (at most MPESA_MAX_SMS_RECIPIENTS per call, default 50). Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode the person approves this exact message and recipient list through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.", annotations={"title": "Send SMS", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("sms_send")
 def sms_send(
     message: Annotated[str, "SMS message text. Unicode supported (Kiswahili etc.)"],
@@ -1273,7 +1273,7 @@ def _expected_currency(phone: str) -> str | None:
     return None
 
 
-@mcp.tool(description="Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode it needs confirm_send=true and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.", annotations={"title": "Send Airtime", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
+@mcp.tool(description="Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode the person approves this exact top-up through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.", annotations={"title": "Send Airtime", "readOnlyHint": False, "destructiveHint": True, "idempotentHint": False, "openWorldHint": True})
 @_terminal_audit("airtime_send")
 def airtime_send(
     phone: Annotated[str, "Recipient phone in E.164 format e.g. '+254712345678'"],

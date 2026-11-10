@@ -37,7 +37,7 @@ cannot trigger an M-Pesa payment or send a Kiswahili SMS without custom integrat
 | `mpesa_stk_query` | Check status of an STK Push request |
 | `mpesa_ratiba_create` | Create an M-Pesa Ratiba standing order (recurring payment the customer approves by PIN); returns the schedule and total commitment |
 | `mpesa_transaction_status` | Query any M-Pesa transaction by receipt number |
-| `sms_send` | Send SMS to 1–1,000 recipients across African networks |
+| `sms_send` | Send an SMS to a list of recipients across African networks (per-call cap, default 50; the person approves each send in live mode) |
 | `airtime_send` | Send airtime top-up to any subscriber (KES, NGN, GHS, UGX, etc.) |
 
 ## Coverage

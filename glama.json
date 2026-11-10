@@ -58,7 +58,7 @@
     },
     {
       "name": "mpesa_b2c",
-      "description": "Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Send money from your business shortcode to a customer's phone (Business to Customer). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -67,7 +67,7 @@
     },
     {
       "name": "mpesa_business_paybill",
-      "description": "Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Pay from your business shortcode directly to another paybill number (B2B PayBill). Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -76,7 +76,7 @@
     },
     {
       "name": "mpesa_business_buygoods",
-      "description": "Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Pay from your business shortcode to a till (Buy Goods) number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -85,7 +85,7 @@
     },
     {
       "name": "mpesa_business_pochi",
-      "description": "Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Pay from your business shortcode to a Pochi la Biashara micro-business wallet by phone number. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -130,7 +130,7 @@
     },
     {
       "name": "mpesa_reversal",
-      "description": "Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Reverse an erroneous M-PESA transaction by its receipt number. Use only when the user has explicitly approved reversing this exact transaction. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -148,7 +148,7 @@
     },
     {
       "name": "mpesa_tax_remittance",
-      "description": "Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Remit tax from your M-PESA business account to the Kenya Revenue Authority. Use only when the user has explicitly approved this exact remittance. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -157,7 +157,7 @@
     },
     {
       "name": "mpesa_b2b_express_checkout",
-      "description": "Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode it needs confirm_send=true (set only after the user approves this exact payment) and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
+      "description": "Start a B2B Express Checkout: a USSD push to another merchant's till so they approve a payment from your account. Use only when the user has explicitly approved this exact payment. MOVES MONEY: in live mode the person approves this exact payment through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns success, the Daraja response and the sandbox flag, or a refusal saying what is missing; the final result arrives asynchronously on your result URL.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -220,7 +220,7 @@
     },
     {
       "name": "sms_send",
-      "description": "Send an SMS to up to 1,000 recipients through Africa's Talking. Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode it needs confirm_send=true and refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.",
+      "description": "Send an SMS to a list of recipients through Africa's Talking (at most MPESA_MAX_SMS_RECIPIENTS per call, default 50). Use only when the user has explicitly approved this exact message and recipient list. SENDS TO REAL PEOPLE: in live mode the person approves this exact message and recipient list through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses more recipients than the per-call cap (MPESA_MAX_SMS_RECIPIENTS, default 50); the sandbox is never restricted. Returns the number sent and failed, any failures, a summary and per-recipient status, cost and id, or a refusal saying what is missing. Sending cannot be undone.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
@@ -229,7 +229,7 @@
     },
     {
       "name": "airtime_send",
-      "description": "Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode it needs confirm_send=true and refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 100,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.",
+      "description": "Send airtime to a phone (Safaricom, Airtel, MTN, Vodafone and others) in a currency. Use only when the user has explicitly approved this exact top-up. MOVES MONEY: in live mode the person approves this exact top-up through the client (a client that cannot show that prompt is refused by default; only in the opt-in param and auto modes is confirm_send=true, set only after the user approves, the fallback), and it refuses amounts above the per-transaction cap (MPESA_MAX_AMOUNT_KES, default KES 20,000); the sandbox is never restricted. Returns the Africa's Talking response or a refusal saying what is missing.",
       "annotations": {
         "readOnlyHint": false,
         "destructiveHint": true,
