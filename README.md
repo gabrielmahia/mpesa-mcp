@@ -173,6 +173,8 @@ One prompt → 200 SMS messages and 200 airtime top-ups across Safaricom, Airtel
 
 Useful for support agents using Claude to verify M-Pesa transactions in real time.
 
+**Reconcile by ID, not phone number.** Since 24 March 2026 Safaricom masks customer phone numbers in M-PESA notifications, and is extending this to merchant and bank flows during 2026, so the MSISDN in callbacks and pulled C2B records may arrive partly hidden. Match payments on the receipt number, `checkout_request_id` / `conversation_id` (every payment tool returns one) or the account reference. If your callback handler matches on phone number, change it.
+
 ## Tool annotations
 
 All tools declare [MCP tool annotations](https://spec.modelcontextprotocol.io/specification/2025-03-26/server/tools/#tool-annotations) so clients can gate calls appropriately:

@@ -1,5 +1,10 @@
 # Changelog — mpesa-mcp
 
+## Unreleased
+
+### Docs
+- Safaricom now masks customer phone numbers in M-PESA notifications (since 24 March 2026, extending to merchant and bank flows during 2026). The README and the `mpesa_pull_transactions` description now say to reconcile by receipt number, request/conversation ID or account reference, never by phone. No code change.
+
 ## 0.7.4 (2026-11-10)
 
 ### Security
