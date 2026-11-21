@@ -853,7 +853,7 @@ def mpesa_query_org_info(
     }
 
 
-@mcp.tool(description="Pull C2B transactions in a date range for reconciliation. Use when reconciling payments received. start_date and end_date use YYYY-MM-DD HH:MM:SS; offset pages through results from 0. Returns count, the transactions, the response code and message. Read-only.", annotations={"title": "Pull C2B Transactions", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
+@mcp.tool(description="Pull C2B transactions in a date range for reconciliation. Use when reconciling payments received. start_date and end_date use YYYY-MM-DD HH:MM:SS; offset pages through results from 0. Returns count, the transactions, the response code and message. Phone numbers in the records may be masked (Safaricom data minimisation, 2026), so reconcile by receipt number or account reference, never by phone. Read-only.", annotations={"title": "Pull C2B Transactions", "readOnlyHint": True, "destructiveHint": False, "idempotentHint": True, "openWorldHint": True})
 def mpesa_pull_transactions(
     start_date: Annotated[str, "Start date YYYY-MM-DD HH:MM:SS"],
     end_date: Annotated[str, "End date YYYY-MM-DD HH:MM:SS"],
