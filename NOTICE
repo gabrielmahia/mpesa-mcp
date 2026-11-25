@@ -4,16 +4,11 @@ mpesa-mcp — MCP server for M-Pesa and Africa's Talking APIs
 Copyright (c) 2026 Gabriel Mahia (contact@aikungfu.dev)
 
 LICENSE STATEMENT
-This project is licensed under Creative Commons Attribution-NonCommercial-NoDerivatives 4.0
-International (CC BY-NC-ND 4.0). See LICENSE for full terms.
+This project is licensed under the MIT License. See LICENSE for full terms.
+You may use, modify and redistribute it, including commercially, as long as the
+copyright notice and licence text are kept.
 
-This license was chosen to:
-- Permit free use by individuals, researchers, civil society, and open-source projects
-- Prevent commercial redistribution without the author's consent
-- Protect the integrity of the tool for East African communities
-
-For commercial licensing, partnerships, or white-label arrangements:
-contact@aikungfu.dev
+For partnerships, support or white-label arrangements: contact@aikungfu.dev
 
 ATTRIBUTION
 If you use mpesa-mcp in research, publications, or open-source tools, please cite:

@@ -268,7 +268,7 @@ Report vulnerabilities to: contact@aikungfu.dev
 
 ## License
 
-[MIT](https://creativecommons.org/licenses/by-nc-nd/4.0/) — © 2026 Gabriel Mahia
+[MIT](LICENSE) — © 2026 Gabriel Mahia
 
 ## Stay updated
 

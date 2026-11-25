@@ -84,7 +84,7 @@ MPESA_ENVIRONMENT=sandbox pytest tests/ -v
 
 ## License
 
-CC-BY-NC-ND-4.0 — free to use with attribution, no commercial redistribution, no derivatives.
+MIT — free to use with attribution, no commercial redistribution, no derivatives.
 Contact `contact@aikungfu.dev` for exceptions.
 
 <!-- coverage-adaptive-reasoning:v2 -->
