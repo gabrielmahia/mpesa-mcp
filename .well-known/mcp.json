@@ -4,7 +4,7 @@
   "description": "Give AI agents access to M-Pesa Daraja API and Africa's Talking. Trigger STK Push payments, check transaction status, send SMS to 20+ African telecom networks, and top up airtime.",
   "version": "0.1.2",
   "spec_version": "2025-03-26",
-  "license": "CC-BY-NC-ND-4.0",
+  "license": "MIT",
   "homepage": "https://github.com/gabrielmahia/mpesa-mcp",
   "repository": "https://github.com/gabrielmahia/mpesa-mcp",
   "author": {
